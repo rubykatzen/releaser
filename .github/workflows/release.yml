@@ -1,0 +1,24 @@
+name: Release
+on:
+  push:
+    tags:
+      - "v*"
+concurrency:
+  group: release-releaser
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+      - run: python -m pip install --upgrade build
+      - run: python -m build
+      - uses: softprops/action-gh-release@v3
+        with:
+          files: dist/*

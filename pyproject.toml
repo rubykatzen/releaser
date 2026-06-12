@@ -1,0 +1,30 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "dupmachine-releaser"
+version = "0.1.0"
+description = "Opinionated zero-config release gate for GitHub repositories."
+readme = "README.md"
+requires-python = ">=3.11"
+license = "MIT"
+authors = [
+  { name = "Dupmachine" },
+]
+dependencies = []
+
+[project.scripts]
+releaser = "releaser.cli:main"
+
+[tool.ruff]
+line-length = 100
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/releaser"]
+
+[tool.pytest.ini_options]
+pythonpath = ["src"]
