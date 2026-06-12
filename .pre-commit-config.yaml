@@ -1,0 +1,9 @@
+repos:
+  - repo: https://github.com/dupmachine/baseline
+    rev: v0.0.6
+    hooks:
+      - id: yamllint
+      - id: pymarkdown
+      - id: ruff
+      - id: shellcheck
+      - id: actionlint
