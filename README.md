@@ -44,6 +44,22 @@ releaser status --json
 releaser patch --dry-run --json
 ```
 
+## Installation
+
+Homebrew installation is available through the dupmachine tap:
+
+```bash
+brew tap dupmachine/tap
+brew install releaser
+```
+
+Upgrade with:
+
+```bash
+brew update
+brew upgrade releaser
+```
+
 ## Requirements
 
 - `git`
