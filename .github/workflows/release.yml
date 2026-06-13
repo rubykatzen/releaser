@@ -26,4 +26,4 @@ jobs:
         run: |
           gh workflow run update-formulas.yml \
             --repo rubykatzen/homebrew-tap \
-            --field version=${GITHUB_REF_NAME#v}
+            --field version="${GITHUB_REF_NAME#v}"
