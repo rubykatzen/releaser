@@ -50,6 +50,7 @@ Homebrew installation is available through the rubykatzen tap:
 
 ```bash
 brew tap rubykatzen/tap
+brew trust rubykatzen/tap
 brew install releaser
 ```
 
