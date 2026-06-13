@@ -1,9 +1,0 @@
-name: Notify Telegram
-on:
-  schedule:
-    - cron: "*/30 * * * *"
-  workflow_dispatch:
-jobs:
-  notify:
-    uses: rubykatzen/baseline/.github/workflows/notify-telegram.yml@v0.0.8
-    secrets: inherit

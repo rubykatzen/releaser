@@ -1,0 +1,8 @@
+name: Dependabot Automerge
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize]
+jobs:
+  merge:
+    uses: rubykatzen/baseline/.github/workflows/dependabot-automerge.yml@v0.0.8
+    secrets: inherit
