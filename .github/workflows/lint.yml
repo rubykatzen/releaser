@@ -8,9 +8,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
-      - uses: rubykatzen/baseline/.github/actions/lint-yamllint@v0.0.10
-      - uses: rubykatzen/baseline/.github/actions/lint-ruff@v0.0.10
-      - uses: rubykatzen/baseline/.github/actions/lint-actionlint@v0.0.10
+      - uses: rubykatzen/baseline/.github/actions/lint-yamllint@v0.0.12
+      - uses: rubykatzen/baseline/.github/actions/lint-ruff@v0.0.12
+      - uses: rubykatzen/baseline/.github/actions/lint-actionlint@v0.0.12
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
