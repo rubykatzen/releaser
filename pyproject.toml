@@ -1,16 +1,16 @@
 [build-system]
-requires = ["hatchling"]
+requires = ["hatchling", "hatch-vcs"]
 build-backend = "hatchling.build"
 
 [project]
-name = "dupmachine-releaser"
-version = "0.0.3"
+name = "releaser"
+dynamic = ["version"]
 description = "Opinionated zero-config release gate for GitHub repositories."
 readme = "README.md"
 requires-python = ">=3.11"
 license = "MIT"
 authors = [
-  { name = "Dupmachine" },
+  { name = "rubykatzen" },
 ]
 dependencies = []
 
@@ -22,6 +22,9 @@ line-length = 100
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "UP", "B", "SIM"]
+
+[tool.hatch.version]
+source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/releaser"]

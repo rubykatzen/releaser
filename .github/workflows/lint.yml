@@ -12,6 +12,6 @@ jobs:
         with:
           python-version: "3.13"
       - run: python -m pip install --upgrade pip
-      - run: python -m pip install ruff pytest
+      - run: python -m pip install -e . ruff pytest
       - run: ruff check .
       - run: pytest

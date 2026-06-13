@@ -1,3 +1,8 @@
 """Opinionated zero-config release gate for GitHub repositories."""
 
-__version__ = "0.0.3"
+from importlib.metadata import PackageNotFoundError, version
+
+try:
+    __version__ = version("releaser")
+except PackageNotFoundError:
+    __version__ = "unknown"

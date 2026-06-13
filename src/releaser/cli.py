@@ -29,7 +29,7 @@ class NotAllowedError(ReleaseError):
     exit_code = ExitCode.NOT_ALLOWED
 
 
-class EnvironmentError(ReleaseError):
+class EnvError(ReleaseError):
     exit_code = ExitCode.ENVIRONMENT
 
 
@@ -92,7 +92,7 @@ def run(cmd: list[str], *, cwd: str | None = None, check: bool = True) -> Comman
 
 def require_executable(name: str) -> None:
     if shutil.which(name) is None:
-        raise EnvironmentError(f"Required executable is missing: {name}")
+        raise EnvError(f"Required executable is missing: {name}")
 
 
 def git(args: list[str], *, cwd: str | None = None, check: bool = True) -> CommandResult:
@@ -106,7 +106,7 @@ def gh(args: list[str], *, cwd: str | None = None, check: bool = True) -> Comman
 def repo_root() -> str:
     result = git(["rev-parse", "--show-toplevel"])
     if not result.stdout:
-        raise EnvironmentError("Current directory is not inside a git repository")
+        raise EnvError("Current directory is not inside a git repository")
     return result.stdout
 
 
@@ -118,14 +118,14 @@ def origin_head(root: str, remote: str, branch: str) -> str:
     ref = f"refs/remotes/{remote}/{branch}"
     result = git(["rev-parse", ref], cwd=root)
     if not result.stdout:
-        raise EnvironmentError(f"Could not resolve {remote}/{branch}")
+        raise EnvError(f"Could not resolve {remote}/{branch}")
     return result.stdout
 
 
 def github_repository(root: str) -> str:
     result = gh(["repo", "view", "--json", "nameWithOwner", "--jq", ".nameWithOwner"], cwd=root)
     if not result.stdout:
-        raise EnvironmentError("Could not determine GitHub repository")
+        raise EnvError("Could not determine GitHub repository")
     return result.stdout
 
 
