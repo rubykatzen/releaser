@@ -46,10 +46,10 @@ releaser patch --dry-run --json
 
 ## Installation
 
-Homebrew installation is available through the dupmachine tap:
+Homebrew installation is available through the rubykatzen tap:
 
 ```bash
-brew tap dupmachine/tap
+brew tap rubykatzen/tap
 brew install releaser
 ```
 
