@@ -10,6 +10,8 @@ from dataclasses import asdict, dataclass
 from enum import IntEnum
 from typing import Any
 
+from releaser import __version__
+
 
 class ExitCode(IntEnum):
     OK = 0
@@ -378,7 +380,7 @@ def parser() -> argparse.ArgumentParser:
         prog="releaser",
         description="Opinionated zero-config release gate for GitHub repositories.",
     )
-    root.add_argument("--version", action="version", version="releaser 0.1.0")
+    root.add_argument("--version", action="version", version=f"releaser {__version__}")
     subparsers = root.add_subparsers(dest="command", required=True)
 
     status = subparsers.add_parser(
