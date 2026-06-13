@@ -8,10 +8,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+      - uses: rubykatzen/baseline/.github/actions/lint-yamllint@latest
+      - uses: rubykatzen/baseline/.github/actions/lint-ruff@latest
+      - uses: rubykatzen/baseline/.github/actions/lint-actionlint@latest
       - uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - run: python -m pip install --upgrade pip
-      - run: python -m pip install -e . ruff pytest
-      - run: ruff check .
+      - run: pip install -e . pytest
       - run: pytest
