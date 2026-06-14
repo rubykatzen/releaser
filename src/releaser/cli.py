@@ -66,6 +66,7 @@ class ReleaseState:
     commits_since_release: int
     ci_status: str
     ci_runs: list[CiRun]
+    required_checks: list[str] | None
     next: dict[str, str]
     release_allowed: bool
     refusal_reason: str | None
@@ -186,49 +187,70 @@ def tag_exists(root: str, tag: str) -> bool:
     return bool(result.stdout)
 
 
-def ci_runs(root: str, branch: str, head: str) -> list[CiRun]:
+def required_check_contexts(repository: str, branch: str) -> list[str] | None:
     result = gh(
-        [
-            "run",
-            "list",
-            "--branch",
-            branch,
-            "--commit",
-            head,
-            "--limit",
-            "100",
-            "--json",
-            "name,workflowName,status,conclusion,headSha,url",
-        ],
-        cwd=root,
+        ["api", f"repos/{repository}/branches/{branch}/protection/required_status_checks"],
+        check=False,
     )
-    payload = json.loads(result.stdout or "[]")
+    if result.returncode != 0:
+        return None
+    try:
+        data = json.loads(result.stdout)
+        checks = data.get("checks") or []
+        if checks:
+            return [c["context"] for c in checks if c.get("context")]
+        return [c for c in data.get("contexts", []) if c]
+    except (json.JSONDecodeError, KeyError):
+        return None
+
+
+def ci_runs(repository: str, head: str) -> list[CiRun]:
+    result = gh(
+        ["api", f"repos/{repository}/commits/{head}/check-runs", "--paginate",
+         "--jq", ".check_runs[] | {name, status, conclusion, url: .html_url}"],
+        check=False,
+    )
     runs: list[CiRun] = []
-    for item in payload:
-        if item.get("headSha") != head:
+    if result.returncode != 0 or not result.stdout:
+        return runs
+    for line in result.stdout.splitlines():
+        line = line.strip()
+        if not line:
             continue
-        runs.append(
-            CiRun(
-                name=item.get("workflowName") or item.get("name") or "unknown",
-                status=item.get("status") or "unknown",
+        try:
+            item = json.loads(line)
+            runs.append(CiRun(
+                name=item["name"],
+                status=item["status"],
                 conclusion=item.get("conclusion"),
                 url=item.get("url"),
-            )
-        )
+            ))
+        except (json.JSONDecodeError, KeyError):
+            continue
     return runs
 
 
-def ci_status(runs: list[CiRun]) -> tuple[str, str | None]:
-    if not runs:
-        return ("missing", "No GitHub Actions runs found for origin/main HEAD")
-    pending = [run for run in runs if run.status != "completed"]
+def ci_status(runs: list[CiRun], required: list[str] | None) -> tuple[str, str | None]:
+    if required is None:
+        return ("unchecked", None)
+    if not required:
+        return ("success", None)
+    by_name = {run.name: run for run in runs}
+    missing, pending, failed = [], [], []
+    for ctx in required:
+        run = by_name.get(ctx)
+        if run is None:
+            missing.append(ctx)
+        elif run.status != "completed":
+            pending.append(ctx)
+        elif run.conclusion != "success":
+            failed.append(f"{ctx}={run.conclusion or 'unknown'}")
+    if missing:
+        return ("missing", f"Required checks not found: {', '.join(missing)}")
     if pending:
-        names = ", ".join(run.name for run in pending)
-        return ("pending", f"GitHub Actions are still running: {names}")
-    failed = [run for run in runs if run.conclusion != "success"]
+        return ("pending", f"Required checks still running: {', '.join(pending)}")
     if failed:
-        details = ", ".join(f"{run.name}={run.conclusion or 'unknown'}" for run in failed)
-        return ("failed", f"GitHub Actions did not pass: {details}")
+        return ("failed", f"Required checks did not pass: {', '.join(failed)}")
     return ("success", None)
 
 
@@ -244,8 +266,9 @@ def state(*, remote: str = "origin", branch: str = "main", do_fetch: bool = True
     latest_tag = latest_semver_tag(root, head)
     commit_count = commits_since(root, latest_tag, head)
     next_versions = {release_type: bump(latest_tag, release_type) for release_type in RELEASE_TYPES}
-    runs = ci_runs(root, branch, head)
-    status, reason = ci_status(runs)
+    required = required_check_contexts(repository, branch)
+    runs = ci_runs(repository, head)
+    status, reason = ci_status(runs, required)
 
     if reason is None and commit_count == 0:
         reason = f"Nothing to release: {remote}/{branch} is already tagged as {latest_tag}"
@@ -266,6 +289,7 @@ def state(*, remote: str = "origin", branch: str = "main", do_fetch: bool = True
         commits_since_release=commit_count,
         ci_status=status,
         ci_runs=runs,
+        required_checks=required,
         next=next_versions,
         release_allowed=reason is None,
         refusal_reason=reason,
@@ -279,7 +303,10 @@ def print_state(state_: ReleaseState, *, verbose: bool) -> None:
     print(f"HEAD: {state_.short_head}")
     print(f"Latest release: {latest}")
     print(f"Commits since release: {state_.commits_since_release}")
-    print(f"CI: {state_.ci_status}")
+    if state_.required_checks is None:
+        print("CI: unchecked (no branch protection)")
+    else:
+        print(f"CI: {state_.ci_status}")
     print(f"Next patch: {state_.next['patch']}")
     print(f"Next minor: {state_.next['minor']}")
     print(f"Next major: {state_.next['major']}")
@@ -289,10 +316,20 @@ def print_state(state_: ReleaseState, *, verbose: bool) -> None:
         print(f"Release allowed: no ({state_.refusal_reason})")
     if verbose:
         print()
-        print("CI runs:")
-        for run_ in state_.ci_runs:
-            conclusion = run_.conclusion or "-"
-            print(f"- {run_.name}: {run_.status}/{conclusion}")
+        if state_.required_checks is None:
+            print("Branch protection: none")
+        elif not state_.required_checks:
+            print("Branch protection: enabled, no required checks")
+        else:
+            by_name = {r.name: r for r in state_.ci_runs}
+            print("Required checks:")
+            for ctx in state_.required_checks:
+                run_ = by_name.get(ctx)
+                if run_ is None:
+                    print(f"  - {ctx}: not found")
+                else:
+                    conclusion = run_.conclusion or run_.status
+                    print(f"  - {ctx}: {conclusion}")
 
 
 def to_json(data: Any) -> None:
