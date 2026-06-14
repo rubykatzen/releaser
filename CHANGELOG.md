@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.2.0] - 2026-06-14
+
+Updated release workflow to use composable baseline actions (`verify-release`, `generate-notes`, `commit-changelog`, `create-release`) at `baseline@v0.2.0` instead of the monolithic `release-shared.yml` reusable workflow.
+
 ## [v0.1.1] - 2026-06-14
 
 Switched from `hatch-vcs` dynamic versioning to static versioning in `pyproject.toml`, fixing Homebrew installation from GitHub source tarballs. Updated baseline ref to `v0.1.1`.

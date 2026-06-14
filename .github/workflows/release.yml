@@ -14,11 +14,28 @@ concurrency:
   group: release-releaser
 jobs:
   release:
-    uses: rubykatzen/baseline/.github/workflows/release-shared.yml@v0.1.1
-    with:
-      version: ${{ inputs.version }}
-      base_sha: ${{ inputs.base_sha }}
-    secrets: inherit
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: rubykatzen/baseline/.github/actions/verify-release@v0.2.0
+        with:
+          base_sha: ${{ inputs.base_sha }}
+      - uses: rubykatzen/baseline/.github/actions/generate-notes@v0.2.0
+        id: notes
+        with:
+          version: ${{ inputs.version }}
+      - uses: rubykatzen/baseline/.github/actions/commit-changelog@v0.2.0
+        with:
+          version: ${{ inputs.version }}
+          notes: ${{ steps.notes.outputs.notes }}
+      - uses: rubykatzen/baseline/.github/actions/create-release@v0.2.0
+        with:
+          version: ${{ inputs.version }}
+          notes: ${{ steps.notes.outputs.notes }}
   update-tap:
     needs: release
     runs-on: ubuntu-latest
