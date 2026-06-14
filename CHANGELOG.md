@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.1.0] - 2026-06-14
+
+The release mechanism is now CI-owned: `releaser patch|minor|major` dispatches a `release.yml` workflow via `gh workflow run` instead of pushing a tag directly. The release workflow uses the shared `release-shared.yml` reusable workflow from baseline, which verifies the base SHA, checks CI, generates AI release notes, commits the changelog, and creates the tag and GitHub Release.
+
 ## [v0.0.6] - 2026-06-13
 
 - switch release workflow to baseline create-release action
