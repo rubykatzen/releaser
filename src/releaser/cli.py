@@ -415,6 +415,48 @@ def command_release(args: argparse.Namespace) -> int:
     return int(ExitCode.OK)
 
 
+def command_cut(args: argparse.Namespace) -> int:
+    version = args.target_version.lstrip("v")
+    tag = f"v{version}"
+    if not SEMVER_TAG_RE.match(tag):
+        raise ReleaseError(f"Invalid semver version: {args.target_version}")
+    state_ = state()
+    if not state_.release_allowed:
+        if args.json:
+            to_json({"release_allowed": False, "reason": state_.refusal_reason, "state": state_})
+        else:
+            print_state(state_, verbose=args.verbose)
+        return int(ExitCode.NOT_ALLOWED)
+    latest = state_.latest_tag
+    if latest is not None:
+        latest_parts = parse_version(latest)
+        target_parts = parse_version(tag)
+        if target_parts <= latest_parts:
+            raise ReleaseError(f"Target version {tag} must be greater than latest tag {latest}")
+    if tag_exists(state_.root, tag):
+        raise ReleaseError(f"Tag {tag} already exists")
+    dispatch_command = [
+        "gh", "workflow", "run", "release.yml",
+        "--repo", state_.repository,
+        "--field", f"version={version}",
+        "--field", f"base_sha={state_.head}",
+    ]
+    if args.dry_run:
+        if args.json:
+            to_json({"dry_run": True, "version": tag, "command": dispatch_command, "state": state_})
+        else:
+            print(f"Would dispatch release {tag} from {state_.remote}/{state_.branch}@{state_.short_head}")
+            print("Would run:", " ".join(dispatch_command))
+        return int(ExitCode.OK)
+    gh(dispatch_command[1:], cwd=state_.root)
+    if args.json:
+        to_json({"version": tag, "dispatched": True, "state": state_})
+    else:
+        print(f"Dispatched release {tag} from {state_.remote}/{state_.branch}@{state_.short_head}")
+        print(f"Workflow: https://github.com/{state_.repository}/actions")
+    return int(ExitCode.OK)
+
+
 def parser() -> argparse.ArgumentParser:
     root = argparse.ArgumentParser(
         prog="releaser",
@@ -434,6 +476,13 @@ def parser() -> argparse.ArgumentParser:
     doctor = subparsers.add_parser("doctor", help="Check local releaser prerequisites.")
     doctor.add_argument("--json", action="store_true", help="Print machine-readable JSON output.")
     doctor.set_defaults(func=command_doctor)
+
+    cut = subparsers.add_parser("cut", help="Cut a release with an explicit version.")
+    cut.add_argument("target_version", metavar="VERSION", help="Version to release (e.g. 1.2.0 or v1.2.0).")
+    cut.add_argument("--dry-run", action="store_true", help="Run checks without creating a tag.")
+    cut.add_argument("--json", action="store_true", help="Print machine-readable JSON output.")
+    cut.add_argument("--verbose", action="store_true", help="Print detailed CI run information.")
+    cut.set_defaults(func=command_cut)
 
     for release_type in RELEASE_TYPES:
         release_parser = subparsers.add_parser(release_type, help=f"Cut a {release_type} release.")
