@@ -14,7 +14,7 @@ concurrency:
   group: release-releaser
 jobs:
   release:
-    uses: rubykatzen/baseline/.github/workflows/release-shared.yml@v0.1.0
+    uses: rubykatzen/baseline/.github/workflows/release-shared.yml@v0.1.1
     with:
       version: ${{ inputs.version }}
       base_sha: ${{ inputs.base_sha }}
