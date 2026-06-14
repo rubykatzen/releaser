@@ -22,18 +22,18 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: rubykatzen/baseline/.github/actions/verify-release@v0.2.0
+      - uses: rubykatzen/baseline/.github/actions/verify-release@v0.2.2
         with:
           base_sha: ${{ inputs.base_sha }}
-      - uses: rubykatzen/baseline/.github/actions/generate-notes@v0.2.0
+      - uses: rubykatzen/baseline/.github/actions/generate-notes@v0.2.2
         id: notes
         with:
           version: ${{ inputs.version }}
-      - uses: rubykatzen/baseline/.github/actions/commit-changelog@v0.2.0
+      - uses: rubykatzen/baseline/.github/actions/commit-changelog@v0.2.2
         with:
           version: ${{ inputs.version }}
           notes: ${{ steps.notes.outputs.notes }}
-      - uses: rubykatzen/baseline/.github/actions/create-release@v0.2.0
+      - uses: rubykatzen/baseline/.github/actions/create-release@v0.2.2
         with:
           version: ${{ inputs.version }}
           notes: ${{ steps.notes.outputs.notes }}
