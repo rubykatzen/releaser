@@ -1,5 +1,11 @@
 # Changelog
 
+## [v0.2.1] - 2026-06-14
+
+- chore: update baseline actions ref to v0.2.2
+- feat: use branch protection required checks for CI gate
+- fix: add actions: read permission to release job
+
 ## [v0.2.0] - 2026-06-14
 
 Updated release workflow to use composable baseline actions (`verify-release`, `generate-notes`, `commit-changelog`, `create-release`) at `baseline@v0.2.0` instead of the monolithic `release-shared.yml` reusable workflow.
