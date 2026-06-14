@@ -5,5 +5,5 @@ on:
   workflow_dispatch:
 jobs:
   autoupdate:
-    uses: rubykatzen/baseline/.github/workflows/pre-commit-autoupdate.yml@v0.0.12
+    uses: rubykatzen/baseline/.github/workflows/pre-commit-autoupdate-shared.yml@v0.0.12
     secrets: inherit

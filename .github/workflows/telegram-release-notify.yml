@@ -5,5 +5,5 @@ on:
   workflow_dispatch:
 jobs:
   notify:
-    uses: rubykatzen/baseline/.github/workflows/telegram-release-notify.yml@v0.0.12
+    uses: rubykatzen/baseline/.github/workflows/telegram-release-notify-shared.yml@v0.0.12
     secrets: inherit
