@@ -266,17 +266,20 @@ def state(*, remote: str = "origin", branch: str = "main", do_fetch: bool = True
     latest_tag = latest_semver_tag(root, head)
     commit_count = commits_since(root, latest_tag, head)
     next_versions = {release_type: bump(latest_tag, release_type) for release_type in RELEASE_TYPES}
-    required = required_check_contexts(repository, branch)
-    runs = ci_runs(repository, head)
-    status, reason = ci_status(runs, required)
-
-    if reason is None and commit_count == 0:
-        reason = f"Nothing to release: {remote}/{branch} is already tagged as {latest_tag}"
-    if reason is None:
+    if commit_count == 0:
+        reason: str | None = f"Nothing to release: {remote}/{branch} is already tagged as {latest_tag}"
+    else:
+        reason = None
         for version in next_versions.values():
             if tag_exists(root, version):
                 reason = f"Next release tag already exists: {version}"
                 break
+
+    required = required_check_contexts(repository, branch)
+    runs = ci_runs(repository, head)
+    status, ci_reason = ci_status(runs, required)
+    if reason is None:
+        reason = ci_reason
 
     return ReleaseState(
         repository=repository,
