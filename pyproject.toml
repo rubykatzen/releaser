@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling", "hatch-vcs"]
+requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
 name = "releaser"
-dynamic = ["version"]
+version = "0.1.1"
 description = "Opinionated zero-config release gate for GitHub repositories."
 readme = "README.md"
 requires-python = ">=3.11"
@@ -16,9 +16,6 @@ dependencies = []
 
 [project.scripts]
 releaser = "releaser.cli:main"
-
-[tool.hatch.version]
-source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/releaser"]
