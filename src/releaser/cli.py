@@ -420,7 +420,7 @@ def parser() -> argparse.ArgumentParser:
         prog="releaser",
         description="Opinionated zero-config release gate for GitHub repositories.",
     )
-    root.add_argument("--version", action="version", version=f"releaser {__version__}")
+    root.add_argument("-v", "--version", action="version", version=f"releaser {__version__}")
     subparsers = root.add_subparsers(dest="command", required=True)
 
     status = subparsers.add_parser(
