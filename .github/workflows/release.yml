@@ -33,6 +33,9 @@ jobs:
         with:
           version: ${{ inputs.version }}
           notes: ${{ steps.notes.outputs.notes }}
+      - uses: rubykatzen/baseline/.github/actions/bump-pyproject-version@v0.2.2
+        with:
+          version: ${{ inputs.version }}
       - uses: rubykatzen/baseline/.github/actions/create-release@v0.2.2
         with:
           version: ${{ inputs.version }}
