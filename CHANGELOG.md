@@ -1,5 +1,10 @@
 # Changelog
 
+## [v0.2.2] - 2026-06-14
+
+- chore: update baseline ref to v0.2.3
+- refactor: add bump-pyproject-version step to release
+
 ## [v0.2.1] - 2026-06-14
 
 - chore: update baseline actions ref to v0.2.2
