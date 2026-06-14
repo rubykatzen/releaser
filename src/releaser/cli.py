@@ -348,30 +348,30 @@ def command_release(args: argparse.Namespace) -> int:
             print_state(state_, verbose=args.verbose)
         return int(ExitCode.NOT_ALLOWED)
 
-    commands = [
-        ["git", "tag", "-a", version, state_.head, "-m", f"Release {version}"],
-        ["git", "push", state_.remote, version],
+    version_num = version.lstrip("v")
+    dispatch_command = [
+        "gh", "workflow", "run", "release.yml",
+        "--repo", state_.repository,
+        "--field", f"version={version_num}",
+        "--field", f"base_sha={state_.head}",
     ]
     if args.dry_run:
         if args.json:
-            to_json({"dry_run": True, "version": version, "commands": commands, "state": state_})
+            to_json({"dry_run": True, "version": version, "command": dispatch_command, "state": state_})
         else:
             print(
-                f"Would create annotated tag {version} "
-                f"on {state_.remote}/{state_.branch}@{state_.short_head}"
+                f"Would dispatch release {version} "
+                f"from {state_.remote}/{state_.branch}@{state_.short_head}"
             )
-            for command in commands:
-                print("Would run:", " ".join(command))
+            print("Would run:", " ".join(dispatch_command))
         return int(ExitCode.OK)
 
-    git(["tag", "-a", version, state_.head, "-m", f"Release {version}"], cwd=state_.root)
-    git(["push", state_.remote, version], cwd=state_.root)
+    gh(dispatch_command[1:], cwd=state_.root)
     if args.json:
-        to_json({"version": version, "pushed": True, "state": state_})
+        to_json({"version": version, "dispatched": True, "state": state_})
     else:
-        print(f"Cut release {version} from {state_.remote}/{state_.branch}@{state_.short_head}")
-        print("Tag: created")
-        print("Push: done")
+        print(f"Dispatched release {version} from {state_.remote}/{state_.branch}@{state_.short_head}")
+        print(f"Workflow: https://github.com/{state_.repository}/actions")
     return int(ExitCode.OK)
 
 
