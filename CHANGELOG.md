@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.3.1] - 2026-06-15
+
+- feat: move telegram-release-notify-shared and dependabot-automerge-shared from baseline
+
 ## [v0.3.0] - 2026-06-15
 
 - feat: move release actions from baseline into releaser
