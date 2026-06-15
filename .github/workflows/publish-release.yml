@@ -29,9 +29,9 @@ jobs:
       - name: Trigger Homebrew tap update
         env:
           GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          RELEASE_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
-          branch="${{ github.event.pull_request.head.ref }}"
-          version="${branch#release/v}"
+          version="${RELEASE_BRANCH#release/v}"
           gh workflow run update-formulas.yml \
             --repo rubykatzen/homebrew-tap \
             --field version="${version}"
