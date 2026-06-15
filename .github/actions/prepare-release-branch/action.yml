@@ -1,0 +1,19 @@
+name: Prepare release branch
+description: Create release/v{version} branch with double-launch protection.
+inputs:
+  version:
+    description: Release version without v prefix.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Create branch
+      shell: bash
+      run: |
+        set -euo pipefail
+        branch="release/v${{ inputs.version }}"
+        if git ls-remote --exit-code --heads origin "$branch" >/dev/null 2>&1; then
+          echo "Error: $branch already exists on origin — is a release already in progress?"
+          exit 1
+        fi
+        git checkout -b "$branch"

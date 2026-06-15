@@ -22,23 +22,23 @@ jobs:
       - uses: actions/checkout@v6
         with:
           fetch-depth: 0
-      - uses: rubykatzen/baseline/.github/actions/verify-release@v0.3.0
+      - uses: ./.github/actions/verify-release
         with:
           base_sha: ${{ inputs.base_sha }}
-      - uses: rubykatzen/baseline/.github/actions/generate-notes@v0.3.0
+      - uses: ./.github/actions/generate-notes
         id: notes
         with:
           version: ${{ inputs.version }}
-      - uses: rubykatzen/baseline/.github/actions/prepare-release-branch@v0.3.0
+      - uses: ./.github/actions/prepare-release-branch
         with:
           version: ${{ inputs.version }}
-      - uses: rubykatzen/baseline/.github/actions/update-changelog@v0.3.0
+      - uses: ./.github/actions/update-changelog
         with:
           version: ${{ inputs.version }}
           notes: ${{ steps.notes.outputs.notes }}
-      - uses: rubykatzen/baseline/.github/actions/bump-pyproject-version@v0.3.0
+      - uses: ./.github/actions/bump-pyproject-version
         with:
           version: ${{ inputs.version }}
-      - uses: rubykatzen/baseline/.github/actions/push-release-branch@v0.3.0
+      - uses: ./.github/actions/push-release-branch
         with:
           version: ${{ inputs.version }}

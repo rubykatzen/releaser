@@ -1,0 +1,55 @@
+name: Generate release notes
+description: Generate AI release notes from git commits since the previous tag.
+inputs:
+  version:
+    description: Release version without v prefix.
+    required: true
+  token:
+    description: GitHub token for AI API access.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  notes:
+    description: Generated release notes.
+    value: ${{ steps.generate.outputs.notes }}
+runs:
+  using: composite
+  steps:
+    - name: Generate
+      id: generate
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        tag="v${{ inputs.version }}"
+        prev_tag=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | grep -v "^${tag}$" | head -1 || true)
+        if [ -n "$prev_tag" ]; then
+          commits=$(git log "${prev_tag}..HEAD" --format="- %s" --no-merges | head -50)
+        else
+          commits=$(git log HEAD --format="- %s" --no-merges | head -50)
+        fi
+        notes=""
+        if [ -n "$commits" ]; then
+          payload=$(jq -n --arg commits "$commits" '{
+            model: "gpt-4o-mini",
+            messages: [{
+              role: "user",
+              content: ("You are writing a changelog entry for a software release. Below are the git commits in this release. Write a concise 2-4 sentence summary in English describing what changed. Write plain prose — no bullet points, no headers.\n\nCommits:\n" + $commits)
+            }],
+            max_tokens: 300
+          }')
+          response=$(curl -sf \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Content-Type: application/json" \
+            "https://models.inference.ai.azure.com/chat/completions" \
+            -d "$payload" || true)
+          notes=$(echo "$response" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
+        fi
+        [ -z "$notes" ] && notes="${commits:-No changes}"
+        {
+          echo "notes<<RELEASE_NOTES_EOF"
+          printf '%s' "$notes"
+          echo ""
+          echo "RELEASE_NOTES_EOF"
+        } >> "$GITHUB_OUTPUT"

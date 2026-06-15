@@ -1,0 +1,46 @@
+name: Read release data
+description: Read version (from branch name) and release notes (from CHANGELOG.md) for a release branch.
+inputs:
+  branch:
+    description: Release branch name (e.g. release/v0.2.3).
+    required: true
+outputs:
+  version:
+    description: Version without v prefix (e.g. 0.2.3).
+    value: ${{ steps.parse.outputs.version }}
+  notes:
+    description: Release notes extracted from CHANGELOG.md.
+    value: ${{ steps.parse.outputs.notes }}
+runs:
+  using: composite
+  steps:
+    - name: Parse
+      id: parse
+      shell: bash
+      run: |
+        set -euo pipefail
+        branch="${{ inputs.branch }}"
+        version="${branch#release/v}"
+        tag="v${version}"
+        # Only ^## [...] lines act as section delimiters so ## headings inside
+        # AI-generated prose don't prematurely terminate extraction.
+        notes=$(awk -v tag="$tag" '
+          BEGIN { in_sec = 0; first = 0; last = 0; n = 0 }
+          /^## \[/ {
+            if (in_sec) exit
+            if (index($0, "## [" tag "]") == 1) in_sec = 1
+            next
+          }
+          in_sec {
+            n++; lines[n] = $0
+            if (NF) { last = n; if (!first) first = n }
+          }
+          END { if (first) for (i = first; i <= last; i++) print lines[i] }
+        ' CHANGELOG.md)
+        [ -z "$notes" ] && notes="Release ${tag}"
+        echo "version=${version}" >> "$GITHUB_OUTPUT"
+        {
+          echo "notes<<PARSE_CHANGELOG_EOF"
+          printf '%s\n' "$notes"
+          echo "PARSE_CHANGELOG_EOF"
+        } >> "$GITHUB_OUTPUT"

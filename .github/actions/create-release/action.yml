@@ -1,0 +1,38 @@
+name: Create GitHub release
+description: Create git tag and publish a GitHub release.
+inputs:
+  version:
+    description: Release version without v prefix.
+    required: true
+  notes:
+    description: Release notes content.
+    required: true
+  token:
+    description: GitHub token.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  tag:
+    description: Release tag created.
+    value: ${{ steps.release.outputs.tag }}
+runs:
+  using: composite
+  steps:
+    - name: Create tag and release
+      id: release
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        NOTES: ${{ inputs.notes }}
+      run: |
+        set -euo pipefail
+        tag="v${{ inputs.version }}"
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git tag -a "$tag" HEAD -m "Release $tag"
+        git push origin "$tag"
+        printf '%s' "$NOTES" > /tmp/release-notes.md
+        gh release create "$tag" \
+          --title "$tag" \
+          --notes-file /tmp/release-notes.md
+        echo "tag=$tag" >> "$GITHUB_OUTPUT"

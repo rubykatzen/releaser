@@ -1,0 +1,12 @@
+name: Push release branch
+description: Push the release/v{version} branch to origin.
+inputs:
+  version:
+    description: Release version without v prefix.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Push
+      shell: bash
+      run: git push origin "release/v${{ inputs.version }}"

@@ -1,0 +1,37 @@
+name: Update changelog
+description: Add a new entry to CHANGELOG.md and commit it to the current branch.
+inputs:
+  version:
+    description: Release version without v prefix.
+    required: true
+  notes:
+    description: Release notes content.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Update and commit
+      shell: bash
+      env:
+        NOTES: ${{ inputs.notes }}
+      run: |
+        set -euo pipefail
+        tag="v${{ inputs.version }}"
+        date=$(date -u +%Y-%m-%d)
+        new_entry="## [${tag}] - ${date}"$'\n\n'"${NOTES}"
+        if [ -f CHANGELOG.md ]; then
+          current=$(cat CHANGELOG.md)
+          if printf '%s' "$current" | head -1 | grep -q '^# Changelog'; then
+            rest=$(printf '%s' "$current" | tail -n +3)
+            new_content="# Changelog"$'\n\n'"${new_entry}"$'\n\n'"${rest}"
+          else
+            new_content="${new_entry}"$'\n\n'"${current}"
+          fi
+        else
+          new_content="# Changelog"$'\n\n'"${new_entry}"
+        fi
+        printf '%s\n' "$new_content" > CHANGELOG.md
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add CHANGELOG.md
+        git commit -m "chore: update changelog for ${tag}"

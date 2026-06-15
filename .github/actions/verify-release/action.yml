@@ -1,0 +1,42 @@
+name: Verify release preconditions
+description: Verify base SHA matches HEAD and CI is green.
+inputs:
+  base_sha:
+    description: Expected HEAD SHA of main.
+    required: true
+  ci_workflow:
+    description: Workflow file to check for green status.
+    required: false
+    default: lint.yml
+  token:
+    description: GitHub token.
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - name: Verify base SHA
+      shell: bash
+      run: |
+        set -euo pipefail
+        current=$(git rev-parse HEAD)
+        if [ "$current" != "${{ inputs.base_sha }}" ]; then
+          echo "main has moved: expected ${{ inputs.base_sha }}, got $current"
+          exit 1
+        fi
+    - name: Verify CI
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        conclusion=$(gh run list \
+          --branch main \
+          --workflow "${{ inputs.ci_workflow }}" \
+          --limit 1 \
+          --json conclusion \
+          --jq '.[0].conclusion // "unknown"')
+        if [ "$conclusion" != "success" ]; then
+          echo "CI is not green: $conclusion"
+          exit 1
+        fi
