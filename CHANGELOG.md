@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.2.3] - 2026-06-15
+
+- fix: pass pull_request.head.ref via env to avoid actionlint warning
+- feat: PR-based release flow
+- feat: add cut subcommand for explicit version release
+- feat: add -v alias for --version
+- fix: check release preconditions before CI gate
+
 ## [v0.2.2] - 2026-06-14
 
 - chore: update baseline ref to v0.2.3
