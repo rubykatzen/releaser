@@ -1,0 +1,64 @@
+name: Telegram Release Notify
+on:
+  workflow_call:
+    inputs:
+      lint-workflow:
+        description: Filename of the lint workflow to check
+        default: lint.yml
+        required: false
+        type: string
+    secrets:
+      TELEGRAM_BOT_TOKEN:
+        required: true
+      TELEGRAM_CHAT_ID:
+        required: true
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - name: Check CI status
+        id: ci
+        run: |
+          conclusion=$(gh run list \
+            --branch main \
+            --workflow "${{ inputs.lint-workflow }}" \
+            --limit 1 \
+            --json conclusion \
+            --jq '.[0].conclusion // "unknown"')
+          echo "conclusion=$conclusion" >> "$GITHUB_OUTPUT"
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Check unreleased commits
+        id: commits
+        run: |
+          last_tag=$(git describe --tags --abbrev=0 2>/dev/null || echo "")
+          if [ -z "$last_tag" ]; then
+            count=$(git rev-list --count HEAD)
+          else
+            count=$(git rev-list --count "${last_tag}..HEAD")
+          fi
+          echo "count=$count" >> "$GITHUB_OUTPUT"
+      - name: Send notification
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          repo="${{ github.repository }}"
+          ci="${{ steps.ci.outputs.conclusion }}"
+          commits="${{ steps.commits.outputs.count }}"
+          if [ "$ci" != "success" ]; then
+            msg="🔴 ${repo}: main is broken (CI: ${ci})"
+          elif [ "$commits" -gt 0 ]; then
+            msg="🟡 ${repo}: ${commits} unreleased commit(s) on main — cut a release"
+          else
+            echo "Nothing to notify."
+            exit 0
+          fi
+          curl -fsSL \
+            -X POST \
+            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
+            -H "Content-Type: application/json" \
+            -d "$(jq -n --arg c "$TELEGRAM_CHAT_ID" --arg t "$msg" '{chat_id: $c, text: $t}')"
