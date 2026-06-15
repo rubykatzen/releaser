@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.3.2] - 2026-06-15
+
+- chore(deps): bump rubykatzen/baseline/.github/workflows/pre-commit-autoupdate-shared.yml (#7)
+- chore(deps): bump rubykatzen/baseline from 0.0.12 to 0.4.3 (#6)
+- fix: add --auto flag to dependabot automerge to wait for required checks (#9)
+- docs: fix README inaccuracies and add AGENTS.md (#8)
+
 ## [v0.3.1] - 2026-06-15
 
 - feat: move telegram-release-notify-shared and dependabot-automerge-shared from baseline
