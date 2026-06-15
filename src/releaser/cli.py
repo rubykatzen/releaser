@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 import argparse
+import datetime
 import json
 import re
 import shutil
 import subprocess
 import sys
+import time
 from dataclasses import asdict, dataclass
 from enum import IntEnum
 from typing import Any
@@ -70,6 +72,12 @@ class ReleaseState:
     next: dict[str, str]
     release_allowed: bool
     refusal_reason: str | None
+
+
+def run_interactive(cmd: list[str], *, cwd: str | None = None) -> int:
+    """Run a command with stdout/stderr streamed to the terminal. Returns exit code."""
+    proc = subprocess.run(cmd, cwd=cwd, check=False)
+    return proc.returncode
 
 
 def run(cmd: list[str], *, cwd: str | None = None, check: bool = True) -> CommandResult:
@@ -254,6 +262,27 @@ def ci_status(runs: list[CiRun], required: list[str] | None) -> tuple[str, str |
     return ("success", None)
 
 
+def wait_for_run(repository: str, workflow: str, after_time: float) -> str:
+    """Poll gh run list until a run for workflow created after after_time appears."""
+    after_iso = datetime.datetime.utcfromtimestamp(after_time).strftime("%Y-%m-%dT%H:%M:%SZ")
+    for _ in range(20):
+        time.sleep(3)
+        result = gh(
+            ["run", "list", "--workflow", workflow, "--repo", repository,
+             "--limit", "5", "--json", "databaseId,createdAt"],
+            check=False,
+        )
+        if result.returncode != 0 or not result.stdout:
+            continue
+        try:
+            for r in json.loads(result.stdout):
+                if r.get("createdAt", "") >= after_iso:
+                    return str(r["databaseId"])
+        except (json.JSONDecodeError, KeyError, TypeError):
+            continue
+    raise ReleaseError(f"Could not find {workflow} run after dispatch")
+
+
 def state(*, remote: str = "origin", branch: str = "main", do_fetch: bool = True) -> ReleaseState:
     require_executable("git")
     require_executable("gh")
@@ -378,6 +407,80 @@ def command_doctor(args: argparse.Namespace) -> int:
     return int(ExitCode.OK if ok else ExitCode.ENVIRONMENT)
 
 
+def _dispatch_and_open_pr(
+    state_: ReleaseState,
+    version: str,
+    *,
+    dry_run: bool,
+    as_json: bool,
+    verbose: bool = False,
+) -> int:
+    version_num = version.lstrip("v")
+    branch = f"release/{version}"
+    workflow = "prepare-release.yml"
+    dispatch_args = [
+        "workflow", "run", workflow,
+        "--repo", state_.repository,
+        "--field", f"version={version_num}",
+        "--field", f"base_sha={state_.head}",
+    ]
+
+    if dry_run:
+        if as_json:
+            to_json({
+                "dry_run": True, "version": version,
+                "command": ["gh"] + dispatch_args, "state": state_,
+            })
+        else:
+            print(
+                f"Would dispatch {workflow} for {version} "
+                f"from {state_.remote}/{state_.branch}@{state_.short_head}"
+            )
+            print("Would run:", " ".join(["gh"] + dispatch_args))
+        return int(ExitCode.OK)
+
+    dispatch_time = time.time()
+    gh(dispatch_args, cwd=state_.root)
+    if not as_json:
+        print(f"Dispatched {workflow} for {version} — waiting for run to appear...")
+
+    run_id = wait_for_run(state_.repository, workflow, dispatch_time)
+    if not as_json:
+        print(f"Watching run {run_id}...")
+
+    watch_result = run_interactive(
+        ["gh", "run", "watch", run_id, "--repo", state_.repository, "--exit-status"],
+        cwd=state_.root,
+    )
+    if watch_result != 0:
+        raise ReleaseError(f"{workflow} failed for {version} (run {run_id})")
+
+    pr_result = gh(
+        [
+            "pr", "create",
+            "--repo", state_.repository,
+            "--title", f"chore: release {version}",
+            "--head", branch,
+            "--base", "main",
+            "--body", f"Automated release PR for {version}.",
+        ],
+        cwd=state_.root,
+    )
+    pr_url = pr_result.stdout.strip()
+
+    gh(
+        ["pr", "merge", branch, "--repo", state_.repository, "--auto", "--squash"],
+        cwd=state_.root,
+    )
+
+    if as_json:
+        to_json({"version": version, "pr_url": pr_url, "state": state_})
+    else:
+        print(f"\nRelease PR: {pr_url}")
+        print("Auto-merge enabled — CI pass → merge → publish-release creates tag + GitHub Release.")
+    return int(ExitCode.OK)
+
+
 def command_release(args: argparse.Namespace) -> int:
     state_ = state()
     version = state_.next[args.release_type]
@@ -387,32 +490,9 @@ def command_release(args: argparse.Namespace) -> int:
         else:
             print_state(state_, verbose=args.verbose)
         return int(ExitCode.NOT_ALLOWED)
-
-    version_num = version.lstrip("v")
-    dispatch_command = [
-        "gh", "workflow", "run", "release.yml",
-        "--repo", state_.repository,
-        "--field", f"version={version_num}",
-        "--field", f"base_sha={state_.head}",
-    ]
-    if args.dry_run:
-        if args.json:
-            to_json({"dry_run": True, "version": version, "command": dispatch_command, "state": state_})
-        else:
-            print(
-                f"Would dispatch release {version} "
-                f"from {state_.remote}/{state_.branch}@{state_.short_head}"
-            )
-            print("Would run:", " ".join(dispatch_command))
-        return int(ExitCode.OK)
-
-    gh(dispatch_command[1:], cwd=state_.root)
-    if args.json:
-        to_json({"version": version, "dispatched": True, "state": state_})
-    else:
-        print(f"Dispatched release {version} from {state_.remote}/{state_.branch}@{state_.short_head}")
-        print(f"Workflow: https://github.com/{state_.repository}/actions")
-    return int(ExitCode.OK)
+    return _dispatch_and_open_pr(
+        state_, version, dry_run=args.dry_run, as_json=args.json, verbose=args.verbose,
+    )
 
 
 def command_cut(args: argparse.Namespace) -> int:
@@ -435,26 +515,9 @@ def command_cut(args: argparse.Namespace) -> int:
             raise ReleaseError(f"Target version {tag} must be greater than latest tag {latest}")
     if tag_exists(state_.root, tag):
         raise ReleaseError(f"Tag {tag} already exists")
-    dispatch_command = [
-        "gh", "workflow", "run", "release.yml",
-        "--repo", state_.repository,
-        "--field", f"version={version}",
-        "--field", f"base_sha={state_.head}",
-    ]
-    if args.dry_run:
-        if args.json:
-            to_json({"dry_run": True, "version": tag, "command": dispatch_command, "state": state_})
-        else:
-            print(f"Would dispatch release {tag} from {state_.remote}/{state_.branch}@{state_.short_head}")
-            print("Would run:", " ".join(dispatch_command))
-        return int(ExitCode.OK)
-    gh(dispatch_command[1:], cwd=state_.root)
-    if args.json:
-        to_json({"version": tag, "dispatched": True, "state": state_})
-    else:
-        print(f"Dispatched release {tag} from {state_.remote}/{state_.branch}@{state_.short_head}")
-        print(f"Workflow: https://github.com/{state_.repository}/actions")
-    return int(ExitCode.OK)
+    return _dispatch_and_open_pr(
+        state_, tag, dry_run=args.dry_run, as_json=args.json, verbose=args.verbose,
+    )
 
 
 def parser() -> argparse.ArgumentParser:

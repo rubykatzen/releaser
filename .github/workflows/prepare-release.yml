@@ -1,0 +1,44 @@
+name: Prepare release branch
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: New version without v prefix (e.g. 0.1.0)
+        required: true
+        type: string
+      base_sha:
+        description: Expected HEAD SHA of main
+        required: true
+        type: string
+concurrency:
+  group: prepare-release-releaser
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+      - uses: rubykatzen/baseline/.github/actions/verify-release@v0.3.0
+        with:
+          base_sha: ${{ inputs.base_sha }}
+      - uses: rubykatzen/baseline/.github/actions/generate-notes@v0.3.0
+        id: notes
+        with:
+          version: ${{ inputs.version }}
+      - uses: rubykatzen/baseline/.github/actions/prepare-release-branch@v0.3.0
+        with:
+          version: ${{ inputs.version }}
+      - uses: rubykatzen/baseline/.github/actions/update-changelog@v0.3.0
+        with:
+          version: ${{ inputs.version }}
+          notes: ${{ steps.notes.outputs.notes }}
+      - uses: rubykatzen/baseline/.github/actions/bump-pyproject-version@v0.3.0
+        with:
+          version: ${{ inputs.version }}
+      - uses: rubykatzen/baseline/.github/actions/push-release-branch@v0.3.0
+        with:
+          version: ${{ inputs.version }}
