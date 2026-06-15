@@ -10,6 +10,6 @@ jobs:
       contents: write
     steps:
       - name: Merge
-        run: gh pr merge "${{ github.event.pull_request.number }}" --merge --repo "${{ github.repository }}"
+        run: gh pr merge "${{ github.event.pull_request.number }}" --merge --auto --repo "${{ github.repository }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
