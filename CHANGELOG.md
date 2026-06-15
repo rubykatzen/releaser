@@ -1,5 +1,9 @@
 # Changelog
 
+## [v0.3.0] - 2026-06-15
+
+- feat: move release actions from baseline into releaser
+
 ## [v0.2.3] - 2026-06-15
 
 - fix: pass pull_request.head.ref via env to avoid actionlint warning
