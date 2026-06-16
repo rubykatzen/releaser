@@ -1,5 +1,5 @@
 name: Bump Ruby gem version
-description: Bump VERSION constant in lib/**/version.rb, commit and push.
+description: Bump VERSION constant in lib/**/version.rb and commit.
 inputs:
   version:
     description: Release version without v prefix.
@@ -11,7 +11,7 @@ runs:
       shell: bash
       run: |
         set -euo pipefail
-        file=$(grep -rl 'VERSION = "' lib/ 2>/dev/null | head -1)
+        file=$(grep -rl 'VERSION = "' lib/ 2>/dev/null | head -1 || true)
         if [ -z "$file" ]; then
           exit 0
         fi
