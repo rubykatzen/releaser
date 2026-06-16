@@ -18,11 +18,9 @@ runs:
         set -euo pipefail
         # shellcheck source=../lib/changelog.sh
         source "${{ github.action_path }}/../lib/changelog.sh"
-
         tag="v${{ inputs.version }}"
         date=$(date -u +%Y-%m-%d)
         new_entry="## [${tag}] - ${date}"$'\n\n'"${NOTES}"
-
         if [ -f CHANGELOG.md ]; then
           current=$(cat CHANGELOG.md)
           if printf '%s' "$current" | head -1 | grep -q '^# Changelog'; then
@@ -34,7 +32,6 @@ runs:
         else
           new_content="# Changelog"$'\n\n'"## [Unreleased]"$'\n\n'"${new_entry}"
         fi
-
         printf '%s\n' "$new_content" > CHANGELOG.md
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
