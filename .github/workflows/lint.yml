@@ -16,3 +16,4 @@ jobs:
           python-version: "3.13"
       - run: pip install -e . pytest
       - run: pytest
+      - run: bash tests/test_changelog.sh

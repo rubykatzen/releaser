@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- feat: include CHANGELOG `[Unreleased]` draft notes in AI release summarization
+- feat: replace `[Unreleased]` section with empty stub when cutting a release
+
 ## [v0.3.3] - 2026-06-16
 
 - docs: add release process documentation for humans and agents

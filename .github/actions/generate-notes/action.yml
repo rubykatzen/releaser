@@ -1,5 +1,5 @@
 name: Generate release notes
-description: Generate AI release notes from git commits since the previous tag.
+description: Generate AI release notes from git commits and CHANGELOG [Unreleased] draft notes.
 inputs:
   version:
     description: Release version without v prefix.
@@ -22,6 +22,9 @@ runs:
         GH_TOKEN: ${{ inputs.token }}
       run: |
         set -euo pipefail
+        # shellcheck source=../lib/changelog.sh
+        source "${{ github.action_path }}/../lib/changelog.sh"
+
         tag="v${{ inputs.version }}"
         prev_tag=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | grep -v "^${tag}$" | head -1 || true)
         if [ -n "$prev_tag" ]; then
@@ -29,13 +32,36 @@ runs:
         else
           commits=$(git log HEAD --format="- %s" --no-merges | head -50)
         fi
+
+        unreleased=""
+        if [ -f CHANGELOG.md ]; then
+          unreleased=$(extract_unreleased_content CHANGELOG.md)
+        fi
+
         notes=""
-        if [ -n "$commits" ]; then
-          payload=$(jq -n --arg commits "$commits" '{
+        if [ -n "$commits" ] || [ -n "$unreleased" ]; then
+          prompt="You are writing a changelog entry for a software release."
+          if [ -n "$unreleased" ]; then
+            prompt="${prompt} Below are draft notes from the CHANGELOG [Unreleased] section."
+          fi
+          if [ -n "$commits" ]; then
+            prompt="${prompt} Below are the git commits in this release."
+          fi
+          prompt="${prompt} Write a concise 2-4 sentence summary in English describing what changed. Write plain prose — no bullet points, no headers."
+
+          content="${prompt}"
+          if [ -n "$unreleased" ]; then
+            content="${content}"$'\n\n'"Draft [Unreleased] notes:"$'\n'"${unreleased}"
+          fi
+          if [ -n "$commits" ]; then
+            content="${content}"$'\n\n'"Commits:"$'\n'"${commits}"
+          fi
+
+          payload=$(jq -n --arg content "$content" '{
             model: "gpt-4o-mini",
             messages: [{
               role: "user",
-              content: ("You are writing a changelog entry for a software release. Below are the git commits in this release. Write a concise 2-4 sentence summary in English describing what changed. Write plain prose — no bullet points, no headers.\n\nCommits:\n" + $commits)
+              content: $content
             }],
             max_tokens: 300
           }')
@@ -46,7 +72,15 @@ runs:
             -d "$payload" || true)
           notes=$(echo "$response" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
         fi
-        [ -z "$notes" ] && notes="${commits:-No changes}"
+
+        if [ -z "$notes" ]; then
+          if [ -n "$unreleased" ]; then
+            notes="$unreleased"
+          else
+            notes="${commits:-No changes}"
+          fi
+        fi
+
         {
           echo "notes<<RELEASE_NOTES_EOF"
           printf '%s' "$notes"
