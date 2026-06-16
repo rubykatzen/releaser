@@ -1,9 +1,0 @@
-name: Pre-commit Autoupdate
-on:
-  schedule:
-    - cron: "30 21 * * *"
-  workflow_dispatch:
-jobs:
-  autoupdate:
-    uses: rubykatzen/baseline/.github/workflows/pre-commit-autoupdate-shared.yml@v0.4.10
-    secrets: inherit
