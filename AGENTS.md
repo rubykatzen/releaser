@@ -20,6 +20,7 @@ repositories. It is the release engine used by all `rubykatzen` repos.
   - `prepare-release-branch` — creates the `release/vX.Y.Z` branch
   - `update-changelog` — prepends the new entry to `CHANGELOG.md`
   - `bump-pyproject-version` — bumps `version` in `pyproject.toml`
+  - `bump-ruby-gem-version` — bumps `VERSION` constant in `lib/**/version.rb`; silently skips if no such file exists
   - `push-release-branch` — pushes the release branch to origin
   - `read-release-data` — extracts version and notes from the merged branch
   - `create-release` — creates the annotated tag and GitHub Release

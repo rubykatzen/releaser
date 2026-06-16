@@ -72,6 +72,26 @@ releaser patch --dry-run --json
   dispatch) and `publish-release.yml` (triggered by merged `release/*` PRs).
 - GitHub Releases are created by `publish-release.yml`, not by the CLI.
 
+## Releasing
+
+`releaser` releases itself. Run from inside this repository:
+
+```bash
+releaser patch   # or: releaser minor / releaser major
+```
+
+Check readiness without triggering anything:
+
+```bash
+releaser status
+releaser patch --dry-run
+```
+
+`prepare-release.yml` fires on dispatch, creates the `release/vX.Y.Z` branch,
+generates AI release notes, bumps `pyproject.toml`, and opens a PR with
+auto-merge enabled. `publish-release.yml` fires on PR merge and creates the
+annotated tag and GitHub Release.
+
 ## Installation
 
 ```bash
