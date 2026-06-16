@@ -1,5 +1,5 @@
-name: Format Telegram PR opened message
-description: Build a Telegram message when a pull request is opened, reopened, or marked ready for review.
+name: Format PR opened message
+description: Build notification text when a pull request is opened, reopened, or marked ready for review.
 inputs:
   repository:
     description: GitHub repository slug (owner/name).

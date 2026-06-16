@@ -21,7 +21,7 @@ jobs:
       pull-requests: read
     steps:
       - id: format
-        uses: ./.github/actions/format-telegram-pr-opened-message
+        uses: ./.github/actions/format-pr-opened-message
         with:
           pr-number: ${{ inputs.pr-number }}
           event-action: ${{ inputs.event-action }}

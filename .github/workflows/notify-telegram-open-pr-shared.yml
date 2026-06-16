@@ -13,7 +13,7 @@ jobs:
       pull-requests: read
     steps:
       - id: format
-        uses: ./.github/actions/format-telegram-open-pr-digest
+        uses: ./.github/actions/format-open-pr-digest
       - uses: ./.github/actions/send-telegram-message
         with:
           message: ${{ steps.format.outputs.message }}

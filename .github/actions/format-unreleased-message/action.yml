@@ -1,5 +1,5 @@
-name: Format Telegram unreleased message
-description: Build a Telegram message for broken main CI or unreleased commits.
+name: Format unreleased message
+description: Build notification text for broken main CI or unreleased commits.
 inputs:
   repository:
     description: GitHub repository slug (owner/name).

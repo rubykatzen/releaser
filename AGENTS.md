@@ -25,9 +25,9 @@ repositories. It is the release engine used by all `rubykatzen` repos.
   - `read-release-data` — extracts version and notes from the merged branch
   - `create-release` — creates the annotated tag and GitHub Release
   - `send-telegram-message` — sends a Telegram message; no-op when text is empty
-  - `format-telegram-unreleased-message` — builds unreleased/CI alert text
-  - `format-telegram-open-pr-digest` — builds open PR digest text
-  - `format-telegram-pr-opened-message` — builds PR opened/reopened alert text
+  - `format-unreleased-message` — builds unreleased/CI alert text
+  - `format-open-pr-digest` — builds open PR digest text
+  - `format-pr-opened-message` — builds PR opened/reopened alert text
 - `.github/workflows/prepare-release.yml` — releaser's own release preparation
 - `.github/workflows/publish-release.yml` — releaser's own tag and release creation
 - `.github/workflows/merge-dependabot-pr-shared.yml` — **reusable**: merges

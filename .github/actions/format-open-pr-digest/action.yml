@@ -1,5 +1,5 @@
-name: Format Telegram open PR digest
-description: Build a Telegram digest of open non-draft pull requests.
+name: Format open PR digest
+description: Build notification text listing open non-draft pull requests.
 inputs:
   repository:
     description: GitHub repository slug (owner/name).
