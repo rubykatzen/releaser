@@ -26,10 +26,15 @@ repositories. It is the release engine used by all `rubykatzen` repos.
   - `create-release` — creates the annotated tag and GitHub Release
 - `.github/workflows/prepare-release.yml` — releaser's own release preparation
 - `.github/workflows/publish-release.yml` — releaser's own tag and release creation
-- `.github/workflows/dependabot-automerge-shared.yml` — **reusable**: merges
+- `.github/workflows/merge-dependabot-pr-shared.yml` — **reusable**: merges
   Dependabot PRs immediately; consumed by other repos
-- `.github/workflows/telegram-release-notify-shared.yml` — **reusable**: checks
+- `.github/workflows/notify-telegram-unreleased-shared.yml` — **reusable**: checks
   main CI + unreleased commits, sends Telegram notification; consumed by other repos
+- `.github/workflows/notify-telegram-open-pr-shared.yml` — **reusable**: daily digest
+  of open non-draft PRs with links and age; consumed by other repos
+- `.github/workflows/notify-telegram-pr-opened-shared.yml` — **reusable**: notifies
+  Telegram when a non-draft PR is opened, reopened, or marked ready for review;
+  consumed by other repos
 
 ## Full Release Flow
 
@@ -84,10 +89,14 @@ Choose `minor` or `major` when the changes warrant it.
 
 | Workflow | Purpose |
 |---|---|
-| `dependabot-automerge-shared.yml` | Merge Dependabot PRs immediately |
-| `telegram-release-notify-shared.yml` | Notify Telegram when main is broken or has unreleased commits |
+| `merge-dependabot-pr-shared.yml` | Merge Dependabot PRs immediately |
+| `notify-telegram-unreleased-shared.yml` | Notify Telegram when main is broken or has unreleased commits |
+| `notify-telegram-open-pr-shared.yml` | Daily digest of open non-draft PRs |
+| `notify-telegram-pr-opened-shared.yml` | Notify Telegram when a PR is opened, reopened, or ready for review |
 
 Consumer repos call them as:
 ```yaml
-uses: rubykatzen/releaser/.github/workflows/dependabot-automerge-shared.yml@vX
+uses: rubykatzen/releaser/.github/workflows/notify-telegram-open-pr-shared.yml@vX
 ```
+
+Secrets required: `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` (same as other Telegram workflows).
