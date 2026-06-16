@@ -1,5 +1,12 @@
 # Changelog
 
+## [v0.3.3] - 2026-06-16
+
+- docs: add release process documentation for humans and agents
+- feat: add bump-ruby-gem-version action (#13)
+- chore(deps): bump rubykatzen/baseline/.github/workflows/pre-commit-autoupdate-shared.yml
+- chore(deps): bump rubykatzen/baseline from 0.4.3 to 0.4.10
+
 ## [v0.3.2] - 2026-06-15
 
 - chore(deps): bump rubykatzen/baseline/.github/workflows/pre-commit-autoupdate-shared.yml (#7)
