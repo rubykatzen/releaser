@@ -1,0 +1,54 @@
+name: Format Telegram PR opened message
+description: Build a Telegram message when a pull request is opened, reopened, or marked ready for review.
+inputs:
+  repository:
+    description: GitHub repository slug (owner/name).
+    required: false
+    default: ${{ github.repository }}
+  pr-number:
+    description: Pull request number.
+    required: true
+  event-action:
+    description: pull_request event action (opened, ready_for_review, reopened).
+    required: true
+  token:
+    description: GitHub token for gh API calls.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  message:
+    description: Empty when the pull request is a draft.
+    value: ${{ steps.format.outputs.message }}
+runs:
+  using: composite
+  steps:
+    - id: format
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        EVENT_ACTION: ${{ inputs.event-action }}
+      run: |
+        set -euo pipefail
+        repo="${{ inputs.repository }}"
+        pr=$(gh pr view "$PR_NUMBER" --json number,title,author,url,isDraft)
+        if [ "$(echo "$pr" | jq -r '.isDraft')" = "true" ]; then
+          msg=""
+        else
+          number=$(echo "$pr" | jq -r '.number')
+          title=$(echo "$pr" | jq -r '.title')
+          author=$(echo "$pr" | jq -r '.author.login')
+          url=$(echo "$pr" | jq -r '.url')
+          case "$EVENT_ACTION" in
+            ready_for_review) action_label="ready for review" ;;
+            reopened) action_label="reopened" ;;
+            *) action_label="opened" ;;
+          esac
+          msg=$(printf '📬 %s: PR %s\n#%s %s\nby @%s\n%s' \
+            "$repo" "$action_label" "$number" "$title" "$author" "$url")
+        fi
+        {
+          echo "message<<EOF"
+          echo "$msg"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"

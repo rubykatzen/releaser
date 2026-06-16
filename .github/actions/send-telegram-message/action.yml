@@ -1,0 +1,32 @@
+name: Send Telegram message
+description: Send a text message to Telegram; no-op when message is empty.
+inputs:
+  message:
+    description: Message text; skipped when empty.
+    required: false
+    default: ""
+  telegram-bot-token:
+    description: Telegram bot token.
+    required: true
+  telegram-chat-id:
+    description: Telegram chat ID.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Send
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ -z "${{ inputs.message }}" ]; then
+          echo "Nothing to send."
+          exit 0
+        fi
+        curl -fsSL \
+          -X POST \
+          "https://api.telegram.org/bot${{ inputs.telegram-bot-token }}/sendMessage" \
+          -H "Content-Type: application/json" \
+          -d "$(jq -n \
+            --arg c "${{ inputs.telegram-chat-id }}" \
+            --arg t "${{ inputs.message }}" \
+            '{chat_id: $c, text: $t}')"

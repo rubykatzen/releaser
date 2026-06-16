@@ -20,33 +20,13 @@ jobs:
     permissions:
       pull-requests: read
     steps:
-      - name: Send notification
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-          PR_NUMBER: ${{ inputs.pr-number }}
-          EVENT_ACTION: ${{ inputs.event-action }}
-        run: |
-          repo="${{ github.repository }}"
-          pr=$(gh pr view "$PR_NUMBER" --json number,title,author,url,isDraft)
-          if [ "$(echo "$pr" | jq -r '.isDraft')" = "true" ]; then
-            echo "Draft PR, skipping."
-            exit 0
-          fi
-          number=$(echo "$pr" | jq -r '.number')
-          title=$(echo "$pr" | jq -r '.title')
-          author=$(echo "$pr" | jq -r '.author.login')
-          url=$(echo "$pr" | jq -r '.url')
-          case "$EVENT_ACTION" in
-            ready_for_review) action_label="ready for review" ;;
-            reopened) action_label="reopened" ;;
-            *) action_label="opened" ;;
-          esac
-          msg=$(printf '📬 %s: PR %s\n#%s %s\nby @%s\n%s' \
-            "$repo" "$action_label" "$number" "$title" "$author" "$url")
-          curl -fsSL \
-            -X POST \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg c "$TELEGRAM_CHAT_ID" --arg t "$msg" '{chat_id: $c, text: $t}')"
+      - id: format
+        uses: ./.github/actions/format-telegram-pr-opened-message
+        with:
+          pr-number: ${{ inputs.pr-number }}
+          event-action: ${{ inputs.event-action }}
+      - uses: ./.github/actions/send-telegram-message
+        with:
+          message: ${{ steps.format.outputs.message }}
+          telegram-bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          telegram-chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
