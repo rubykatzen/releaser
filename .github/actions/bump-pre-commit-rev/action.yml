@@ -1,0 +1,21 @@
+name: Bump pre-commit rev
+description: Update rev in .pre-commit-config.yaml to the release version and commit.
+inputs:
+  version:
+    description: Release version without v prefix.
+    required: true
+runs:
+  using: composite
+  steps:
+    - name: Bump and commit
+      shell: bash
+      run: |
+        set -euo pipefail
+        if [ ! -f .pre-commit-config.yaml ]; then
+          exit 0
+        fi
+        sed -i "s/rev: .*/rev: v${{ inputs.version }}/" .pre-commit-config.yaml
+        git config user.name "github-actions[bot]"
+        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git add .pre-commit-config.yaml
+        git diff --cached --quiet || git commit -m "chore: bump pre-commit rev to v${{ inputs.version }}"
