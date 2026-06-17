@@ -337,21 +337,26 @@ def wait_for_run(
     workflow: str,
     after_time: float,
     *,
+    head_branch: str | None = None,
     timeout: float = 60.0,
     poll_interval: float = 3.0,
 ) -> str:
     """Poll gh run list until a run for workflow created after after_time appears."""
-    after_iso = datetime.datetime.utcfromtimestamp(after_time).strftime("%Y-%m-%dT%H:%M:%SZ")
+    after_iso = datetime.datetime.fromtimestamp(after_time, datetime.UTC).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
     deadline = time.time() + timeout
     while time.time() < deadline:
         result = gh(
             ["run", "list", "--workflow", workflow, "--repo", repository,
-             "--limit", "5", "--json", "databaseId,createdAt"],
+             "--limit", "5", "--json", "databaseId,createdAt,headBranch"],
             check=False,
         )
         if result.returncode == 0 and result.stdout:
             try:
                 for run in json.loads(result.stdout):
+                    if head_branch is not None and run.get("headBranch") != head_branch:
+                        continue
                     if run.get("createdAt", "") >= after_iso:
                         return str(run["databaseId"])
             except (json.JSONDecodeError, KeyError, TypeError):
@@ -387,8 +392,7 @@ def wait_for_pr_checks(
             continue
         rollup = json.loads(result.stdout).get("statusCheckRollup") or []
         if not rollup:
-            time.sleep(poll_interval)
-            continue
+            return
         pending: list[str] = []
         failed: list[str] = []
         for check in rollup:
@@ -729,6 +733,7 @@ def run_release(
         state_.repository,
         PUBLISH_RELEASE_WORKFLOW,
         merge_time,
+        head_branch=branch,
         timeout=DEFAULT_PUBLISH_TIMEOUT,
     )
     if not as_json:
