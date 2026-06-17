@@ -1,5 +1,4 @@
-from releaser.cli import check_workflow_file, ci_status, pr_number_from_url
-from releaser.cli import CiRun
+from releaser.cli import CiRun, check_workflow_file, ci_status, pr_number_from_url
 
 
 def test_check_workflow_file_convention() -> None:
