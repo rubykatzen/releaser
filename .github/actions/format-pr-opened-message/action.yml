@@ -1,0 +1,55 @@
+name: Format PR opened message
+description: Build notification text when a pull request is opened, reopened, or marked ready for review.
+inputs:
+  repository:
+    description: GitHub repository slug (owner/name).
+    required: false
+    default: ${{ github.repository }}
+  pr-number:
+    description: Pull request number.
+    required: true
+  event-action:
+    description: pull_request event action (opened, ready_for_review, reopened).
+    required: true
+  token:
+    description: GitHub token for gh API calls.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  message:
+    description: Empty when the pull request is a draft.
+    value: ${{ steps.format.outputs.message }}
+runs:
+  using: composite
+  steps:
+    - id: format
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repository }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+        EVENT_ACTION: ${{ inputs.event-action }}
+      run: |
+        set -euo pipefail
+        pr=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json number,title,author,url,isDraft)
+        if [ "$(echo "$pr" | jq -r '.isDraft')" = "true" ]; then
+          msg=""
+        else
+          number=$(echo "$pr" | jq -r '.number')
+          title=$(echo "$pr" | jq -r '.title')
+          author=$(echo "$pr" | jq -r '.author.login')
+          url=$(echo "$pr" | jq -r '.url')
+          case "$EVENT_ACTION" in
+            ready_for_review) event="PR ready for review" ;;
+            reopened) event="PR reopened" ;;
+            *) event="PR opened" ;;
+          esac
+          msg=$(printf '🟢 %s — %s\n#%s %s\n@%s · %s' \
+            "$REPO" "$event" "$number" "$title" "$author" "$url")
+        fi
+        delimiter="ghdelim_$(openssl rand -hex 8)"
+        {
+          echo "message<<$delimiter"
+          echo "$msg"
+          echo "$delimiter"
+        } >> "$GITHUB_OUTPUT"

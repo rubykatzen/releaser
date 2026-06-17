@@ -1,0 +1,26 @@
+name: Get issue labels
+description: Fetch current issue labels via the GitHub CLI.
+inputs:
+  number:
+    description: Issue number.
+    required: true
+  token:
+    description: GitHub token for gh API calls.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  labels:
+    description: JSON array of label names.
+    value: ${{ steps.get-issue-labels.outputs.labels }}
+runs:
+  using: composite
+  steps:
+    - name: Get issue labels
+      id: get-issue-labels
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        labels=$(gh issue view "${{ inputs.number }}" --json labels -q '.labels|map(.name)')
+        echo "labels=$labels" >> "$GITHUB_OUTPUT"

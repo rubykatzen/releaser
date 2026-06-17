@@ -1,0 +1,47 @@
+name: Format open PR digest
+description: Build notification text listing open non-draft pull requests.
+inputs:
+  repository:
+    description: GitHub repository slug (owner/name).
+    required: false
+    default: ${{ github.repository }}
+  token:
+    description: GitHub token for gh API calls.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  message:
+    description: Empty when there are no open non-draft pull requests.
+    value: ${{ steps.format.outputs.message }}
+runs:
+  using: composite
+  steps:
+    - id: format
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        repo="${{ inputs.repository }}"
+        now=$(date +%s)
+        prs=$(gh pr list --repo "$repo" --state open --limit 100 \
+          --json number,title,author,isDraft,url,createdAt \
+          --jq '[.[] | select(.isDraft == false)]')
+        count=$(echo "$prs" | jq 'length')
+        if [ "$count" -eq 0 ]; then
+          msg=""
+        else
+          lines=$(echo "$prs" | jq -r --argjson now "$now" '
+            .[] |
+            ((($now - (.createdAt | fromdateiso8601)) / 86400) | floor) as $days |
+            "#" + (.number | tostring) + " " + .title + "\n" +
+            "@" + .author.login + " · " + ($days | tostring) + "d · " + .url
+          ')
+          msg=$(printf '🟡 %s — %d open PR(s)\n%s' "$repo" "$count" "$lines")
+        fi
+        delimiter="ghdelim_$(openssl rand -hex 8)"
+        {
+          echo "message<<$delimiter"
+          echo "$msg"
+          echo "$delimiter"
+        } >> "$GITHUB_OUTPUT"

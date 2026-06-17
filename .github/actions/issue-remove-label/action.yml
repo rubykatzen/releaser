@@ -1,0 +1,23 @@
+name: Remove issue label
+description: Remove a label from an issue via the GitHub CLI.
+inputs:
+  number:
+    description: Issue number.
+    required: true
+  label:
+    description: Label name to remove.
+    required: true
+  token:
+    description: GitHub token for gh API calls.
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - name: Remove issue label
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        gh issue edit "${{ inputs.number }}" --remove-label "${{ inputs.label }}" || true

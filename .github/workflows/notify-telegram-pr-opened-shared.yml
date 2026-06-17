@@ -1,0 +1,33 @@
+name: Notify Telegram PR opened
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        required: true
+        type: number
+      event-action:
+        description: pull_request event action (opened, ready_for_review, reopened)
+        required: true
+        type: string
+    secrets:
+      TELEGRAM_BOT_TOKEN:
+        required: true
+      TELEGRAM_CHAT_ID:
+        required: true
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v6
+      - id: format
+        uses: ./.github/actions/format-pr-opened-message
+        with:
+          pr-number: ${{ inputs.pr-number }}
+          event-action: ${{ inputs.event-action }}
+      - uses: ./.github/actions/send-telegram-message
+        with:
+          message: ${{ steps.format.outputs.message }}
+          telegram-bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          telegram-chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}

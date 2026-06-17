@@ -1,0 +1,42 @@
+name: Format unreleased message
+description: Build notification text for broken main CI or unreleased commits.
+inputs:
+  repository:
+    description: GitHub repository slug (owner/name).
+    required: false
+    default: ${{ github.repository }}
+  ci-conclusion:
+    description: Latest lint workflow conclusion on main.
+    required: true
+  unreleased-count:
+    description: Number of commits on main since the latest tag.
+    required: true
+outputs:
+  message:
+    description: Empty when there is nothing to notify.
+    value: ${{ steps.format.outputs.message }}
+runs:
+  using: composite
+  steps:
+    - id: format
+      shell: bash
+      run: |
+        set -euo pipefail
+        repo="${{ inputs.repository }}"
+        ci="${{ inputs.ci-conclusion }}"
+        count="${{ inputs.unreleased-count }}"
+        if [ "$ci" != "success" ]; then
+          msg=$(printf '🔴 %s — CI broken (conclusion: %s)\nhttps://github.com/%s/actions' \
+            "$repo" "$ci" "$repo")
+        elif [ "$count" -gt 0 ]; then
+          msg=$(printf '🟡 %s — %d unreleased commit(s)\nhttps://github.com/%s' \
+            "$repo" "$count" "$repo")
+        else
+          msg=""
+        fi
+        delimiter="ghdelim_$(openssl rand -hex 8)"
+        {
+          echo "message<<$delimiter"
+          echo "$msg"
+          echo "$delimiter"
+        } >> "$GITHUB_OUTPUT"

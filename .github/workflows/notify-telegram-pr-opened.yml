@@ -1,0 +1,12 @@
+name: Notify Telegram PR opened
+on:
+  pull_request:
+    types: [opened, ready_for_review, reopened]
+jobs:
+  notify:
+    if: github.event.action == 'ready_for_review' || github.event.pull_request.draft == false
+    uses: ./.github/workflows/notify-telegram-pr-opened-shared.yml
+    with:
+      pr-number: ${{ github.event.pull_request.number }}
+      event-action: ${{ github.event.action }}
+    secrets: inherit

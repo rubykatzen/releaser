@@ -1,0 +1,44 @@
+name: Format issue closed message
+description: Build notification text when an issue is closed.
+inputs:
+  repository:
+    description: GitHub repository slug (owner/name).
+    required: false
+    default: ${{ github.repository }}
+  issue-number:
+    description: Issue number.
+    required: true
+  actor:
+    description: GitHub username who closed the issue.
+    required: true
+  token:
+    description: GitHub token for gh API calls.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  message:
+    description: Notification text.
+    value: ${{ steps.format.outputs.message }}
+runs:
+  using: composite
+  steps:
+    - id: format
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repository }}
+        ISSUE_NUMBER: ${{ inputs.issue-number }}
+        ACTOR: ${{ inputs.actor }}
+      run: |
+        set -euo pipefail
+        issue=$(gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json title,url)
+        title=$(echo "$issue" | jq -r '.title')
+        url=$(echo "$issue" | jq -r '.url')
+        msg=$(printf '🟢 %s — issue closed\n#%s %s\n@%s · %s' \
+          "$REPO" "$ISSUE_NUMBER" "$title" "$ACTOR" "$url")
+        delimiter="ghdelim_$(openssl rand -hex 8)"
+        {
+          echo "message<<$delimiter"
+          echo "$msg"
+          echo "$delimiter"
+        } >> "$GITHUB_OUTPUT"
