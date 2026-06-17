@@ -102,6 +102,7 @@ Choose `minor` or `major` when the changes warrant it.
 | `notify-telegram-unreleased-shared.yml` | Notify Telegram when main is broken or has unreleased commits |
 | `notify-telegram-open-pr-shared.yml` | Daily digest of open non-draft PRs |
 | `notify-telegram-pr-opened-shared.yml` | Notify Telegram when a PR is opened, reopened, or ready for review |
+| `notify-telegram-issue-closed-shared.yml` | Notify Telegram when a labeled issue is closed |
 
 Consumer repos call them as:
 ```yaml

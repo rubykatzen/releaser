@@ -1,5 +1,13 @@
 # Changelog
 
+## [v0.3.4] - 2026-06-17
+
+- ci: add workflow_dispatch to lint workflow
+- chore: re-run lint on main
+- fix: skip commit in bump-ruby-gem-version when version already matches (#19)
+- chore(deps): bump https://github.com/rubykatzen/baseline
+- chore: replace pre-commit autoupdate workflow with Dependabot (#16)
+
 ## [v0.3.3] - 2026-06-16
 
 - docs: add release process documentation for humans and agents
