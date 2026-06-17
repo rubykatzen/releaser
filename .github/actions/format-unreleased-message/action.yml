@@ -32,8 +32,9 @@ runs:
         else
           msg=""
         fi
+        delimiter="ghdelim_$(openssl rand -hex 8)"
         {
-          echo "message<<EOF"
+          echo "message<<$delimiter"
           echo "$msg"
-          echo "EOF"
+          echo "$delimiter"
         } >> "$GITHUB_OUTPUT"

@@ -24,7 +24,7 @@ runs:
         set -euo pipefail
         repo="${{ inputs.repository }}"
         now=$(date +%s)
-        prs=$(gh pr list --state open --limit 100 \
+        prs=$(gh pr list --repo "$repo" --state open --limit 100 \
           --json number,title,author,isDraft,url,createdAt \
           --jq '[.[] | select(.isDraft == false)]')
         count=$(echo "$prs" | jq 'length')
@@ -39,8 +39,9 @@ runs:
           ')
           msg=$(printf '🟡 %s: %d open PR(s)\n%s' "$repo" "$count" "$lines")
         fi
+        delimiter="ghdelim_$(openssl rand -hex 8)"
         {
-          echo "message<<EOF"
+          echo "message<<$delimiter"
           echo "$msg"
-          echo "EOF"
+          echo "$delimiter"
         } >> "$GITHUB_OUTPUT"

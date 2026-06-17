@@ -47,8 +47,9 @@ runs:
           msg=$(printf '📬 %s: PR %s\n#%s %s\nby @%s\n%s' \
             "$repo" "$action_label" "$number" "$title" "$author" "$url")
         fi
+        delimiter="ghdelim_$(openssl rand -hex 8)"
         {
-          echo "message<<EOF"
+          echo "message<<$delimiter"
           echo "$msg"
-          echo "EOF"
+          echo "$delimiter"
         } >> "$GITHUB_OUTPUT"

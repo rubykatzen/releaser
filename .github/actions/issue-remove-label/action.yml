@@ -20,4 +20,4 @@ runs:
         GH_TOKEN: ${{ inputs.token }}
       run: |
         set -euo pipefail
-        gh issue edit "${{ inputs.number }}" --remove-label "${{ inputs.label }}"
+        gh issue edit "${{ inputs.number }}" --remove-label "${{ inputs.label }}" || true

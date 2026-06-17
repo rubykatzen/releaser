@@ -40,8 +40,9 @@ runs:
           msg=$(printf '%s\n%s\n' "$msg" "$body")
         fi
         msg=$(printf '%s\n%s' "$msg" "$url")
+        delimiter="ghdelim_$(openssl rand -hex 8)"
         {
-          echo "message<<EOF"
+          echo "message<<$delimiter"
           echo "$msg"
-          echo "EOF"
+          echo "$delimiter"
         } >> "$GITHUB_OUTPUT"

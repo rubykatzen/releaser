@@ -16,17 +16,21 @@ runs:
   steps:
     - name: Send
       shell: bash
+      env:
+        MESSAGE: ${{ inputs.message }}
+        BOT_TOKEN: ${{ inputs.telegram-bot-token }}
+        CHAT_ID: ${{ inputs.telegram-chat-id }}
       run: |
         set -euo pipefail
-        if [ -z "${{ inputs.message }}" ]; then
+        if [ -z "$MESSAGE" ]; then
           echo "Nothing to send."
           exit 0
         fi
         curl -fsSL \
           -X POST \
-          "https://api.telegram.org/bot${{ inputs.telegram-bot-token }}/sendMessage" \
+          "https://api.telegram.org/bot${BOT_TOKEN}/sendMessage" \
           -H "Content-Type: application/json" \
           -d "$(jq -n \
-            --arg c "${{ inputs.telegram-chat-id }}" \
-            --arg t "${{ inputs.message }}" \
+            --arg c "$CHAT_ID" \
+            --arg t "$MESSAGE" \
             '{chat_id: $c, text: $t}')"
