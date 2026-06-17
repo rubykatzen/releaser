@@ -28,6 +28,9 @@ repositories. It is the release engine used by all `rubykatzen` repos.
   - `format-unreleased-message` — builds unreleased/CI alert text
   - `format-open-pr-digest` — builds open PR digest text
   - `format-pr-opened-message` — builds PR opened/reopened alert text
+  - `format-issue-closed-message` — builds issue closed alert text
+  - `issue-get-labels` — fetches current issue labels via gh
+  - `issue-remove-label` — removes a label from an issue via gh
 - `.github/workflows/prepare-release.yml` — releaser's own release preparation
 - `.github/workflows/publish-release.yml` — releaser's own tag and release creation
 - `.github/workflows/merge-dependabot-pr-shared.yml` — **reusable**: merges
@@ -39,6 +42,8 @@ repositories. It is the release engine used by all `rubykatzen` repos.
 - `.github/workflows/notify-telegram-pr-opened-shared.yml` — **reusable**: notifies
   Telegram when a non-draft PR is opened, reopened, or marked ready for review;
   consumed by other repos
+- `.github/workflows/notify-telegram-issue-closed-shared.yml` — **reusable**: notifies
+  Telegram when a labeled issue is closed; consumed by other repos
 
 ## Full Release Flow
 

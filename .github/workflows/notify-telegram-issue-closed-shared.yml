@@ -1,0 +1,48 @@
+name: Notify Telegram issue closed
+on:
+  workflow_call:
+    inputs:
+      issue-number:
+        required: true
+        type: number
+      actor:
+        description: GitHub username who closed the issue.
+        required: true
+        type: string
+      notify-label:
+        description: Issue label that triggers notification.
+        required: false
+        type: string
+        default: notify
+    secrets:
+      TELEGRAM_BOT_TOKEN:
+        required: true
+      TELEGRAM_CHAT_ID:
+        required: true
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - id: issue-labels
+        uses: ./.github/actions/issue-get-labels
+        with:
+          number: ${{ inputs.issue-number }}
+      - id: format
+        if: contains(fromJSON(steps.issue-labels.outputs.labels), '${{ inputs.notify-label }}')
+        uses: ./.github/actions/format-issue-closed-message
+        with:
+          issue-number: ${{ inputs.issue-number }}
+          actor: ${{ inputs.actor }}
+      - uses: ./.github/actions/send-telegram-message
+        if: contains(fromJSON(steps.issue-labels.outputs.labels), '${{ inputs.notify-label }}')
+        with:
+          message: ${{ steps.format.outputs.message }}
+          telegram-bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          telegram-chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
+      - uses: ./.github/actions/issue-remove-label
+        if: contains(fromJSON(steps.issue-labels.outputs.labels), '${{ inputs.notify-label }}')
+        with:
+          number: ${{ inputs.issue-number }}
+          label: ${{ inputs.notify-label }}

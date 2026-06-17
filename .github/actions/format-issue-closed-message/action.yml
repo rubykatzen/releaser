@@ -1,0 +1,47 @@
+name: Format issue closed message
+description: Build Telegram notification text when an issue is closed.
+inputs:
+  repository:
+    description: GitHub repository slug (owner/name).
+    required: false
+    default: ${{ github.repository }}
+  issue-number:
+    description: Issue number.
+    required: true
+  actor:
+    description: GitHub username who closed the issue.
+    required: true
+  token:
+    description: GitHub token for gh API calls.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  message:
+    description: Notification text.
+    value: ${{ steps.format.outputs.message }}
+runs:
+  using: composite
+  steps:
+    - id: format
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        ISSUE_NUMBER: ${{ inputs.issue-number }}
+        ACTOR: ${{ inputs.actor }}
+      run: |
+        set -euo pipefail
+        repo="${{ inputs.repository }}"
+        issue=$(gh issue view "$ISSUE_NUMBER" --json title,body,url)
+        title=$(echo "$issue" | jq -r '.title')
+        body=$(echo "$issue" | jq -r '.body // ""')
+        url=$(echo "$issue" | jq -r '.url')
+        msg=$(printf '🔒 %s: @%s closed issue\n#%s %s\n' "$repo" "$ACTOR" "$ISSUE_NUMBER" "$title")
+        if [ -n "$body" ]; then
+          msg=$(printf '%s\n%s\n' "$msg" "$body")
+        fi
+        msg=$(printf '%s\n%s' "$msg" "$url")
+        {
+          echo "message<<EOF"
+          echo "$msg"
+          echo "EOF"
+        } >> "$GITHUB_OUTPUT"
