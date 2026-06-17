@@ -20,6 +20,7 @@ jobs:
     permissions:
       pull-requests: read
     steps:
+      - uses: actions/checkout@v6
       - id: format
         uses: ./.github/actions/format-pr-opened-message
         with:

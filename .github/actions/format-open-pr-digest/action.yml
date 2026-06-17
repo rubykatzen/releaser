@@ -34,10 +34,10 @@ runs:
           lines=$(echo "$prs" | jq -r --argjson now "$now" '
             .[] |
             ((($now - (.createdAt | fromdateiso8601)) / 86400) | floor) as $days |
-            "• #" + (.number | tostring) + " " + .title + " — @" + .author.login +
-            " (" + ($days | tostring) + "d)\n  " + .url
+            "#" + (.number | tostring) + " " + .title + "\n" +
+            "@" + .author.login + " · " + ($days | tostring) + "d · " + .url
           ')
-          msg=$(printf '🟡 %s: %d open PR(s)\n%s' "$repo" "$count" "$lines")
+          msg=$(printf '🟡 %s — %d open PR(s)\n%s' "$repo" "$count" "$lines")
         fi
         delimiter="ghdelim_$(openssl rand -hex 8)"
         {

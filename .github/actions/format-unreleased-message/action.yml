@@ -26,9 +26,11 @@ runs:
         ci="${{ inputs.ci-conclusion }}"
         count="${{ inputs.unreleased-count }}"
         if [ "$ci" != "success" ]; then
-          msg="🔴 ${repo}: main is broken (CI: ${ci})"
+          msg=$(printf '🔴 %s — CI broken (conclusion: %s)\nhttps://github.com/%s/actions' \
+            "$repo" "$ci" "$repo")
         elif [ "$count" -gt 0 ]; then
-          msg="🟡 ${repo}: ${count} unreleased commit(s) on main — cut a release"
+          msg=$(printf '🟡 %s — %d unreleased commit(s)\nhttps://github.com/%s' \
+            "$repo" "$count" "$repo")
         else
           msg=""
         fi

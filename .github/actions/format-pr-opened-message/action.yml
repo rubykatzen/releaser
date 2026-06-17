@@ -26,12 +26,12 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repository }}
         PR_NUMBER: ${{ inputs.pr-number }}
         EVENT_ACTION: ${{ inputs.event-action }}
       run: |
         set -euo pipefail
-        repo="${{ inputs.repository }}"
-        pr=$(gh pr view "$PR_NUMBER" --json number,title,author,url,isDraft)
+        pr=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json number,title,author,url,isDraft)
         if [ "$(echo "$pr" | jq -r '.isDraft')" = "true" ]; then
           msg=""
         else
@@ -40,12 +40,12 @@ runs:
           author=$(echo "$pr" | jq -r '.author.login')
           url=$(echo "$pr" | jq -r '.url')
           case "$EVENT_ACTION" in
-            ready_for_review) action_label="ready for review" ;;
-            reopened) action_label="reopened" ;;
-            *) action_label="opened" ;;
+            ready_for_review) event="PR ready for review" ;;
+            reopened) event="PR reopened" ;;
+            *) event="PR opened" ;;
           esac
-          msg=$(printf '📬 %s: PR %s\n#%s %s\nby @%s\n%s' \
-            "$repo" "$action_label" "$number" "$title" "$author" "$url")
+          msg=$(printf '🟢 %s — %s\n#%s %s\n@%s · %s' \
+            "$REPO" "$event" "$number" "$title" "$author" "$url")
         fi
         delimiter="ghdelim_$(openssl rand -hex 8)"
         {

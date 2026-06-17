@@ -1,5 +1,5 @@
 name: Format issue closed message
-description: Build Telegram notification text when an issue is closed.
+description: Build notification text when an issue is closed.
 inputs:
   repository:
     description: GitHub repository slug (owner/name).
@@ -26,20 +26,16 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repository }}
         ISSUE_NUMBER: ${{ inputs.issue-number }}
         ACTOR: ${{ inputs.actor }}
       run: |
         set -euo pipefail
-        repo="${{ inputs.repository }}"
-        issue=$(gh issue view "$ISSUE_NUMBER" --json title,body,url)
+        issue=$(gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json title,url)
         title=$(echo "$issue" | jq -r '.title')
-        body=$(echo "$issue" | jq -r '.body // ""')
         url=$(echo "$issue" | jq -r '.url')
-        msg=$(printf '🔒 %s: @%s closed issue\n#%s %s\n' "$repo" "$ACTOR" "$ISSUE_NUMBER" "$title")
-        if [ -n "$body" ]; then
-          msg=$(printf '%s\n%s\n' "$msg" "$body")
-        fi
-        msg=$(printf '%s\n%s' "$msg" "$url")
+        msg=$(printf '🟢 %s — issue closed\n#%s %s\n@%s · %s' \
+          "$REPO" "$ISSUE_NUMBER" "$title" "$ACTOR" "$url")
         delimiter="ghdelim_$(openssl rand -hex 8)"
         {
           echo "message<<$delimiter"
