@@ -1,9 +1,0 @@
-name: Telegram Release Notify
-on:
-  schedule:
-    - cron: "0 22 * * *"
-  workflow_dispatch:
-jobs:
-  notify:
-    uses: ./.github/workflows/telegram-release-notify-shared.yml
-    secrets: inherit

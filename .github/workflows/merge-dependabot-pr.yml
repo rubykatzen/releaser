@@ -1,8 +1,8 @@
-name: Dependabot Automerge
+name: Merge Dependabot PR
 on:
   pull_request_target:
     types: [opened, reopened, synchronize]
 jobs:
   merge:
-    uses: ./.github/workflows/dependabot-automerge-shared.yml
+    uses: ./.github/workflows/merge-dependabot-pr-shared.yml
     secrets: inherit

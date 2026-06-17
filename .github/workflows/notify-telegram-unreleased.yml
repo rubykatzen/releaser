@@ -1,0 +1,9 @@
+name: Notify Telegram unreleased commits
+on:
+  schedule:
+    - cron: "0 22 * * *"
+  workflow_dispatch:
+jobs:
+  notify:
+    uses: ./.github/workflows/notify-telegram-unreleased-shared.yml
+    secrets: inherit

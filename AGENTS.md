@@ -26,9 +26,9 @@ repositories. It is the release engine used by all `rubykatzen` repos.
   - `create-release` — creates the annotated tag and GitHub Release
 - `.github/workflows/prepare-release.yml` — releaser's own release preparation
 - `.github/workflows/publish-release.yml` — releaser's own tag and release creation
-- `.github/workflows/dependabot-automerge-shared.yml` — **reusable**: merges
+- `.github/workflows/merge-dependabot-pr-shared.yml` — **reusable**: merges
   Dependabot PRs immediately; consumed by other repos
-- `.github/workflows/telegram-release-notify-shared.yml` — **reusable**: checks
+- `.github/workflows/notify-telegram-unreleased-shared.yml` — **reusable**: checks
   main CI + unreleased commits, sends Telegram notification; consumed by other repos
 
 ## Full Release Flow
@@ -84,10 +84,10 @@ Choose `minor` or `major` when the changes warrant it.
 
 | Workflow | Purpose |
 |---|---|
-| `dependabot-automerge-shared.yml` | Merge Dependabot PRs immediately |
-| `telegram-release-notify-shared.yml` | Notify Telegram when main is broken or has unreleased commits |
+| `merge-dependabot-pr-shared.yml` | Merge Dependabot PRs immediately |
+| `notify-telegram-unreleased-shared.yml` | Notify Telegram when main is broken or has unreleased commits |
 
 Consumer repos call them as:
 ```yaml
-uses: rubykatzen/releaser/.github/workflows/dependabot-automerge-shared.yml@vX
+uses: rubykatzen/releaser/.github/workflows/merge-dependabot-pr-shared.yml@vX
 ```

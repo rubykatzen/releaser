@@ -1,4 +1,4 @@
-name: Telegram Release Notify
+name: Notify Telegram unreleased commits
 on:
   workflow_call:
     inputs:
