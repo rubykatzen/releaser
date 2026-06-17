@@ -57,6 +57,14 @@ class CiRun:
 
 
 @dataclass(frozen=True)
+class UnreleasedCommit:
+    sha: str
+    short_sha: str
+    subject: str
+    committed_at: str
+
+
+@dataclass(frozen=True)
 class ReleaseState:
     repository: str
     root: str
@@ -182,12 +190,48 @@ def bump(tag: str | None, release_type: str) -> str:
     return f"v{major}.{minor}.{patch}"
 
 
-def commits_since(root: str, latest_tag: str | None, head: str) -> int:
+def commit_range(latest_tag: str | None, head: str) -> str:
     if latest_tag is None:
-        result = git(["rev-list", "--count", head], cwd=root)
-    else:
-        result = git(["rev-list", "--count", f"{latest_tag}..{head}"], cwd=root)
+        return head
+    return f"{latest_tag}..{head}"
+
+
+def parse_git_log_line(line: str) -> UnreleasedCommit | None:
+    parts = line.split("\t", 3)
+    if len(parts) != 4:
+        return None
+    sha, short_sha, committed_at, subject = parts
+    if not sha or not short_sha:
+        return None
+    return UnreleasedCommit(
+        sha=sha,
+        short_sha=short_sha,
+        subject=subject,
+        committed_at=committed_at,
+    )
+
+
+def commits_since(root: str, latest_tag: str | None, head: str) -> int:
+    result = git(["rev-list", "--count", commit_range(latest_tag, head)], cwd=root)
     return int(result.stdout)
+
+
+def unreleased_commits(root: str, latest_tag: str | None, head: str) -> list[UnreleasedCommit]:
+    result = git(
+        [
+            "log",
+            commit_range(latest_tag, head),
+            "--format=%H\t%h\t%ci\t%s",
+            "--no-merges",
+        ],
+        cwd=root,
+    )
+    commits: list[UnreleasedCommit] = []
+    for line in result.stdout.splitlines():
+        commit = parse_git_log_line(line)
+        if commit is not None:
+            commits.append(commit)
+    return commits
 
 
 def tag_exists(root: str, tag: str) -> bool:
@@ -328,13 +372,20 @@ def state(*, remote: str = "origin", branch: str = "main", do_fetch: bool = True
     )
 
 
-def print_state(state_: ReleaseState, *, verbose: bool) -> None:
+def print_state(
+    state_: ReleaseState,
+    *,
+    verbose: bool,
+    commits: list[UnreleasedCommit],
+) -> None:
     latest = state_.latest_tag or "none"
     print(f"Repository: {state_.repository}")
     print(f"Branch: {state_.remote}/{state_.branch}")
     print(f"HEAD: {state_.short_head}")
     print(f"Latest release: {latest}")
     print(f"Commits since release: {state_.commits_since_release}")
+    for commit in commits:
+        print(f"  {commit.short_sha}  {commit.subject}  ({commit.committed_at[:10]})")
     if state_.required_checks is None:
         print("CI: unchecked (no branch protection)")
     else:
@@ -375,10 +426,13 @@ def to_json(data: Any) -> None:
 
 def command_status(args: argparse.Namespace) -> int:
     state_ = state()
+    commits = unreleased_commits(state_.root, state_.latest_tag, state_.head)
     if args.json:
-        to_json(state_)
+        payload: dict[str, Any] = asdict(state_)
+        payload["unreleased_commits"] = [asdict(c) for c in commits]
+        to_json(payload)
     else:
-        print_state(state_, verbose=args.verbose)
+        print_state(state_, verbose=args.verbose, commits=commits)
     return int(ExitCode.OK if state_.release_allowed else ExitCode.NOT_ALLOWED)
 
 
@@ -488,7 +542,11 @@ def command_release(args: argparse.Namespace) -> int:
         if args.json:
             to_json({"release_allowed": False, "reason": state_.refusal_reason, "state": state_})
         else:
-            print_state(state_, verbose=args.verbose)
+            print_state(
+                state_,
+                verbose=args.verbose,
+                commits=unreleased_commits(state_.root, state_.latest_tag, state_.head),
+            )
         return int(ExitCode.NOT_ALLOWED)
     return _dispatch_and_open_pr(
         state_, version, dry_run=args.dry_run, as_json=args.json, verbose=args.verbose,
@@ -505,7 +563,11 @@ def command_cut(args: argparse.Namespace) -> int:
         if args.json:
             to_json({"release_allowed": False, "reason": state_.refusal_reason, "state": state_})
         else:
-            print_state(state_, verbose=args.verbose)
+            print_state(
+                state_,
+                verbose=args.verbose,
+                commits=unreleased_commits(state_.root, state_.latest_tag, state_.head),
+            )
         return int(ExitCode.NOT_ALLOWED)
     latest = state_.latest_tag
     if latest is not None:
