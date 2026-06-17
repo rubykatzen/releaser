@@ -1,5 +1,5 @@
 repos:
-  - repo: git@github.com:rubykatzen/baseline.git
+  - repo: https://github.com/rubykatzen/baseline
     rev: v0.0.12
     hooks:
       - id: yamllint
