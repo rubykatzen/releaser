@@ -14,7 +14,7 @@ Replace `OWNER/REPO` with the current GitHub repository name.
 Use the emoji to identify the agent:
 
 - `🤖` Codex
-- `🧠` Claude Code
+- `🤔` Claude Code
 - `🖊️` Cursor
 - `🧩` unknown or other agent
 
