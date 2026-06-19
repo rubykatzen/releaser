@@ -1,7 +1,5 @@
----
 name: Update Homebrew formula
-description: >-
-  Update a Homebrew formula to the latest upstream version.
+description: Update a Homebrew formula to the latest upstream version.
 inputs:
   repository:
     description: Released GitHub repository in owner/name form.
@@ -79,7 +77,6 @@ runs:
           --version "$latest" \
           --write-only \
           --strict \
-          --online \
           --no-browse \
           --no-fork
         git config user.name "github-actions[bot]"
@@ -87,9 +84,7 @@ runs:
         git config user.email "$bot_email"
         git add "$formula_path"
         if git diff --cached --quiet; then
-          msg="Homebrew reported latest=$latest,"
-          msg="$msg but no formula changes were produced."
-          echo "$msg"
+          echo "Homebrew reported latest=$latest, but no formula changes were produced."
           echo "changed=false" >> "$GITHUB_OUTPUT"
         else
           git commit -m "${formula}: update to v${latest}"
