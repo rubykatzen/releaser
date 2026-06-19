@@ -38,40 +38,38 @@ runs:
         class_name="${{ inputs.class-name }}"
         desc="${{ inputs.description }}"
         test_match="${{ inputs.test-match }}"
-        url="https://github.com/${repository}/archive/refs/tags/v${version}.tar.gz"
+        archive_path="archive/refs/tags/v${version}.tar.gz"
+        url="https://github.com/${repository}/${archive_path}"
         sha256="$(curl -fsSL "$url" | shasum -a 256 | awk '{print $1}')"
         mkdir -p Formula
         cat > "Formula/${formula}.rb" <<EOF
         class ${class_name} < Formula
           include Language::Python::Virtualenv
-
           desc "${desc}"
           homepage "https://github.com/${repository}"
           url "${url}"
           sha256 "${sha256}"
           license "MIT"
-
           livecheck do
             url :stable
             regex(/^v?(\\d+(?:\\.\\d+)+)$/i)
           end
-
           depends_on "gh"
           depends_on "git"
           depends_on "python@3.13"
-
           def install
             virtualenv_install_with_resources
           end
-
           test do
-            assert_match "${test_match}", shell_output("#{bin}/${formula} --help")
+            output = shell_output("#{bin}/${formula} --help")
+            assert_match "${test_match}", output
           end
         end
         EOF
         ruby -pi -e 'gsub(/^ {8}/, "")' "Formula/${formula}.rb"
         git config user.name "github-actions[bot]"
-        git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        bot_email="41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.email "$bot_email"
         git add "Formula/${formula}.rb"
         if git diff --cached --quiet; then
           echo "No formula updates to push."

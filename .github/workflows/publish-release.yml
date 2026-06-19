@@ -32,7 +32,7 @@ jobs:
           RELEASE_BRANCH: ${{ github.event.pull_request.head.ref }}
         run: |
           version="${RELEASE_BRANCH#release/v}"
-          gh workflow run update-homebrew-formulas.yml \
+          gh workflow run update-formulas.yml \
             --repo rubykatzen/homebrew-tap \
-            --field formula="releaser" \
+            --field project="releaser" \
             --field version="${version}"
