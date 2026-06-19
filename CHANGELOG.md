@@ -1,5 +1,18 @@
 # Changelog
 
+## [v0.4.0] - 2026-06-19
+
+- feat: close the release loop in releaser CLI (#22)
+- feat: list unreleased commits in status output (#26)
+- docs: add portable agent message prefix (#27)
+- chore(deps): bump actions/checkout from 6 to 7
+- chore(deps): bump https://github.com/rubykatzen/baseline
+- chore(deps): bump rubykatzen/baseline from 0.5.0 to 0.5.1
+- feat: add Telegram workflows for open PR digest and events (#18)
+- refactor: rename shared workflows to verb-noun pattern (#17)
+- chore(deps): bump rubykatzen/baseline from 0.4.10 to 0.5.0
+- chore(deps): bump https://github.com/rubykatzen/baseline
+
 ## [v0.3.4] - 2026-06-17
 
 - ci: add workflow_dispatch to lint workflow
