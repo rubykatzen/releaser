@@ -5,4 +5,6 @@ on:
 jobs:
   merge:
     uses: ./.github/workflows/merge-dependabot-pr-shared.yml
+    with:
+      max-update-type: minor
     secrets: inherit
