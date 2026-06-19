@@ -35,7 +35,7 @@ runs:
             .[] |
             ((($now - (.createdAt | fromdateiso8601)) / 86400) | floor) as $days |
             "#" + (.number | tostring) + " " + .title + "\n" +
-            "@" + .author.login + " · " + ($days | tostring) + "d · " + .url
+            .author.login + " · " + ($days | tostring) + "d · " + .url
           ')
           msg=$(printf '🟡 %s — %d open PR(s)\n%s' "$repo" "$count" "$lines")
         fi
