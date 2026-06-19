@@ -10,7 +10,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           ref: main
           fetch-depth: 0
@@ -34,4 +34,5 @@ jobs:
           version="${RELEASE_BRANCH#release/v}"
           gh workflow run update-formulas.yml \
             --repo rubykatzen/homebrew-tap \
+            --field project="releaser" \
             --field version="${version}"

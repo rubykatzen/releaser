@@ -1,4 +1,4 @@
-name: Telegram Release Notify
+name: Notify Telegram unreleased commits
 on:
   workflow_call:
     inputs:
@@ -16,7 +16,7 @@ jobs:
   notify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0
       - name: Check CI status
@@ -41,24 +41,13 @@ jobs:
             count=$(git rev-list --count "${last_tag}..HEAD")
           fi
           echo "count=$count" >> "$GITHUB_OUTPUT"
-      - name: Send notification
-        env:
-          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
-        run: |
-          repo="${{ github.repository }}"
-          ci="${{ steps.ci.outputs.conclusion }}"
-          commits="${{ steps.commits.outputs.count }}"
-          if [ "$ci" != "success" ]; then
-            msg="🔴 ${repo}: main is broken (CI: ${ci})"
-          elif [ "$commits" -gt 0 ]; then
-            msg="🟡 ${repo}: ${commits} unreleased commit(s) on main — cut a release"
-          else
-            echo "Nothing to notify."
-            exit 0
-          fi
-          curl -fsSL \
-            -X POST \
-            "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage" \
-            -H "Content-Type: application/json" \
-            -d "$(jq -n --arg c "$TELEGRAM_CHAT_ID" --arg t "$msg" '{chat_id: $c, text: $t}')"
+      - id: format
+        uses: ./.github/actions/format-unreleased-message
+        with:
+          ci-conclusion: ${{ steps.ci.outputs.conclusion }}
+          unreleased-count: ${{ steps.commits.outputs.count }}
+      - uses: ./.github/actions/send-telegram-message
+        with:
+          message: ${{ steps.format.outputs.message }}
+          telegram-bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          telegram-chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}

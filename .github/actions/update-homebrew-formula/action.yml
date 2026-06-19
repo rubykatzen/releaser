@@ -1,0 +1,93 @@
+name: Update Homebrew formula
+description: Update a Homebrew formula to the latest upstream version.
+inputs:
+  repository:
+    description: Released GitHub repository in owner/name form.
+    required: true
+  formula:
+    description: Formula name without .rb suffix.
+    required: false
+    default: ""
+  tap:
+    description: Tap name in owner/repo form.
+    required: false
+    default: rubykatzen/tap
+  token:
+    description: GitHub token.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  formula:
+    description: Formula that was checked.
+    value: ${{ steps.bump.outputs.formula }}
+  current:
+    description: Stable formula version before the bump.
+    value: ${{ steps.bump.outputs.current }}
+  latest:
+    description: Latest upstream version reported by livecheck.
+    value: ${{ steps.bump.outputs.latest }}
+  changed:
+    description: Whether the formula was updated.
+    value: ${{ steps.bump.outputs.changed }}
+runs:
+  using: composite
+  steps:
+    - name: Bump formula to latest upstream version
+      id: bump
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        HOMEBREW_NO_AUTO_UPDATE: "1"
+      run: |
+        set -euo pipefail
+        repository="${{ inputs.repository }}"
+        tap="${{ inputs.tap }}"
+        formula="${{ inputs.formula }}"
+        if [ -z "$formula" ]; then
+          formula="${repository##*/}"
+        fi
+        full_formula="${tap}/${formula}"
+        formula_path="Formula/${formula}.rb"
+        if [ ! -f "$formula_path" ]; then
+          echo "Formula not found: $formula_path" >&2
+          exit 1
+        fi
+        brew tap "$tap" "$PWD"
+        latest="$(
+          brew livecheck "$full_formula" --json |
+            jq -r '.[0].version.latest // ""'
+        )"
+        current="$(
+          brew info "$full_formula" --json=v2 |
+            jq -r '.formulae[0].versions.stable // ""'
+        )"
+        if [ -z "$latest" ] || [ "$latest" = "null" ]; then
+          echo "Could not resolve latest version for $full_formula" >&2
+          exit 1
+        fi
+        echo "formula=$formula" >> "$GITHUB_OUTPUT"
+        echo "current=$current" >> "$GITHUB_OUTPUT"
+        echo "latest=$latest" >> "$GITHUB_OUTPUT"
+        if [ "$latest" = "$current" ]; then
+          echo "$full_formula already current ($current)."
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+        brew bump-formula-pr "$full_formula" \
+          --version "$latest" \
+          --write-only \
+          --strict \
+          --no-browse \
+          --no-fork
+        git config user.name "github-actions[bot]"
+        bot_email="41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.email "$bot_email"
+        git add "$formula_path"
+        if git diff --cached --quiet; then
+          echo "Homebrew reported latest=$latest, but no formula changes were produced."
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+        else
+          git commit -m "${formula}: update to v${latest}"
+          git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+        fi

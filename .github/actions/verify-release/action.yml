@@ -28,15 +28,15 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
+        CI_WORKFLOW: ${{ inputs.ci_workflow }}
       run: |
         set -euo pipefail
-        conclusion=$(gh run list \
-          --branch main \
-          --workflow "${{ inputs.ci_workflow }}" \
-          --limit 1 \
-          --json conclusion \
-          --jq '.[0].conclusion // "unknown"')
+        current=$(git rev-parse HEAD)
+        check_name="${CI_WORKFLOW%.yml}"
+        conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${current}/check-runs" \
+          --paginate \
+          --jq "[.check_runs[] | select(.name == \"${check_name}\")] | last | .conclusion // \"missing\"")
         if [ "$conclusion" != "success" ]; then
-          echo "CI is not green: $conclusion"
+          echo "CI is not green on ${current}: ${check_name}=${conclusion}"
           exit 1
         fi

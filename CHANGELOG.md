@@ -5,6 +5,27 @@
 - feat: include CHANGELOG `[Unreleased]` draft notes in AI release summarization
 - feat: replace `[Unreleased]` section with empty stub when cutting a release
 
+## [v0.4.0] - 2026-06-19
+
+- feat: close the release loop in releaser CLI (#22)
+- feat: list unreleased commits in status output (#26)
+- docs: add portable agent message prefix (#27)
+- chore(deps): bump actions/checkout from 6 to 7
+- chore(deps): bump https://github.com/rubykatzen/baseline
+- chore(deps): bump rubykatzen/baseline from 0.5.0 to 0.5.1
+- feat: add Telegram workflows for open PR digest and events (#18)
+- refactor: rename shared workflows to verb-noun pattern (#17)
+- chore(deps): bump rubykatzen/baseline from 0.4.10 to 0.5.0
+- chore(deps): bump https://github.com/rubykatzen/baseline
+
+## [v0.3.4] - 2026-06-17
+
+- ci: add workflow_dispatch to lint workflow
+- chore: re-run lint on main
+- fix: skip commit in bump-ruby-gem-version when version already matches (#19)
+- chore(deps): bump https://github.com/rubykatzen/baseline
+- chore: replace pre-commit autoupdate workflow with Dependabot (#16)
+
 ## [v0.3.3] - 2026-06-16
 
 - docs: add release process documentation for humans and agents

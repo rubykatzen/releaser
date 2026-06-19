@@ -39,6 +39,11 @@ SEMVER_TAG_RE = re.compile(
     r"^v(?P<major>0|[1-9]\d*)\.(?P<minor>0|[1-9]\d*)\.(?P<patch>0|[1-9]\d*)$"
 )
 RELEASE_TYPES = ("patch", "minor", "major")
+PREPARE_RELEASE_WORKFLOW = "prepare-release.yml"
+PUBLISH_RELEASE_WORKFLOW = "publish-release.yml"
+DEFAULT_CHECK_TIMEOUT = 900.0
+DEFAULT_MERGE_TIMEOUT = 3600.0
+DEFAULT_PUBLISH_TIMEOUT = 600.0
 
 
 @dataclass(frozen=True)
@@ -54,6 +59,14 @@ class CiRun:
     status: str
     conclusion: str | None
     url: str | None
+
+
+@dataclass(frozen=True)
+class UnreleasedCommit:
+    sha: str
+    short_sha: str
+    subject: str
+    committed_at: str
 
 
 @dataclass(frozen=True)
@@ -182,12 +195,48 @@ def bump(tag: str | None, release_type: str) -> str:
     return f"v{major}.{minor}.{patch}"
 
 
-def commits_since(root: str, latest_tag: str | None, head: str) -> int:
+def commit_range(latest_tag: str | None, head: str) -> str:
     if latest_tag is None:
-        result = git(["rev-list", "--count", head], cwd=root)
-    else:
-        result = git(["rev-list", "--count", f"{latest_tag}..{head}"], cwd=root)
+        return head
+    return f"{latest_tag}..{head}"
+
+
+def parse_git_log_line(line: str) -> UnreleasedCommit | None:
+    parts = line.split("\t", 3)
+    if len(parts) != 4:
+        return None
+    sha, short_sha, committed_at, subject = parts
+    if not sha or not short_sha:
+        return None
+    return UnreleasedCommit(
+        sha=sha,
+        short_sha=short_sha,
+        subject=subject,
+        committed_at=committed_at,
+    )
+
+
+def commits_since(root: str, latest_tag: str | None, head: str) -> int:
+    result = git(["rev-list", "--count", commit_range(latest_tag, head)], cwd=root)
     return int(result.stdout)
+
+
+def unreleased_commits(root: str, latest_tag: str | None, head: str) -> list[UnreleasedCommit]:
+    result = git(
+        [
+            "log",
+            commit_range(latest_tag, head),
+            "--format=%H\t%h\t%ci\t%s",
+            "--no-merges",
+        ],
+        cwd=root,
+    )
+    commits: list[UnreleasedCommit] = []
+    for line in result.stdout.splitlines():
+        commit = parse_git_log_line(line)
+        if commit is not None:
+            commits.append(commit)
+    return commits
 
 
 def tag_exists(root: str, tag: str) -> bool:
@@ -262,25 +311,222 @@ def ci_status(runs: list[CiRun], required: list[str] | None) -> tuple[str, str |
     return ("success", None)
 
 
-def wait_for_run(repository: str, workflow: str, after_time: float) -> str:
-    """Poll gh run list until a run for workflow created after after_time appears."""
-    after_iso = datetime.datetime.utcfromtimestamp(after_time).strftime("%Y-%m-%dT%H:%M:%SZ")
-    for _ in range(20):
+def check_workflow_file(check: str) -> str:
+    """Map a branch-protection check name to a workflow file (zero-config convention)."""
+    return f"{check}.yml"
+
+
+def repo_allow_auto_merge(repository: str) -> bool:
+    result = gh(
+        ["api", f"repos/{repository}", "--jq", ".allow_auto_merge"],
+        check=False,
+    )
+    return result.returncode == 0 and result.stdout.strip() == "true"
+
+
+def wait_for_checks(
+    repository: str,
+    head: str,
+    required: list[str],
+    *,
+    timeout: float = DEFAULT_CHECK_TIMEOUT,
+    poll_interval: float = 5.0,
+    verbose: bool = False,
+) -> list[CiRun]:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        runs = ci_runs(repository, head)
+        status, reason = ci_status(runs, required)
+        if status == "success":
+            return runs
+        if status == "failed":
+            raise NotAllowedError(reason or "Required checks failed")
+        if verbose and reason:
+            print(f"Waiting for main CI: {reason}")
+        time.sleep(poll_interval)
+    raise ReleaseError(f"Timed out waiting for required checks on {head[:7]}")
+
+
+def ensure_main_ci(
+    repository: str,
+    branch: str,
+    head: str,
+    required: list[str] | None,
+    *,
+    verbose: bool = False,
+) -> None:
+    if not required:
+        return
+    runs = ci_runs(repository, head)
+    status, reason = ci_status(runs, required)
+    if status == "success":
+        return
+    if status == "failed":
+        raise NotAllowedError(reason)
+    if status == "missing":
+        by_name = {run.name for run in runs}
+        for ctx in required:
+            if ctx in by_name:
+                continue
+            workflow = check_workflow_file(ctx)
+            if verbose:
+                print(f"Dispatching {workflow} for missing check {ctx} on {branch}...")
+            gh(["workflow", "run", workflow, "--repo", repository, "--ref", branch])
         time.sleep(3)
+    wait_for_checks(repository, head, required, verbose=verbose)
+
+
+def wait_for_run(
+    repository: str,
+    workflow: str,
+    after_time: float,
+    *,
+    head_branch: str | None = None,
+    timeout: float = 60.0,
+    poll_interval: float = 3.0,
+) -> str:
+    """Poll gh run list until a run for workflow created after after_time appears."""
+    after_iso = datetime.datetime.fromtimestamp(after_time, datetime.UTC).strftime(
+        "%Y-%m-%dT%H:%M:%SZ"
+    )
+    deadline = time.time() + timeout
+    while time.time() < deadline:
         result = gh(
             ["run", "list", "--workflow", workflow, "--repo", repository,
-             "--limit", "5", "--json", "databaseId,createdAt"],
+             "--limit", "5", "--json", "databaseId,createdAt,headBranch"],
+            check=False,
+        )
+        if result.returncode == 0 and result.stdout:
+            try:
+                for run in json.loads(result.stdout):
+                    if head_branch is not None and run.get("headBranch") != head_branch:
+                        continue
+                    if run.get("createdAt", "") >= after_iso:
+                        return str(run["databaseId"])
+            except (json.JSONDecodeError, KeyError, TypeError):
+                pass
+        time.sleep(poll_interval)
+    raise ReleaseError(f"Could not find {workflow} run after dispatch")
+
+
+def pr_number_from_url(pr_url: str) -> int:
+    return int(pr_url.rstrip("/").split("/")[-1])
+
+
+def wait_for_pr_checks(
+    repository: str,
+    pr_number: int,
+    *,
+    timeout: float = DEFAULT_CHECK_TIMEOUT,
+    poll_interval: float = 5.0,
+    verbose: bool = False,
+) -> None:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        result = gh(
+            [
+                "pr", "view", str(pr_number),
+                "--repo", repository,
+                "--json", "statusCheckRollup",
+            ],
             check=False,
         )
         if result.returncode != 0 or not result.stdout:
+            time.sleep(poll_interval)
             continue
-        try:
-            for r in json.loads(result.stdout):
-                if r.get("createdAt", "") >= after_iso:
-                    return str(r["databaseId"])
-        except (json.JSONDecodeError, KeyError, TypeError):
-            continue
-    raise ReleaseError(f"Could not find {workflow} run after dispatch")
+        rollup = json.loads(result.stdout).get("statusCheckRollup") or []
+        if not rollup:
+            return
+        pending: list[str] = []
+        failed: list[str] = []
+        for check in rollup:
+            name = check.get("name") or "check"
+            status = check.get("status") or ""
+            conclusion = check.get("conclusion") or ""
+            if status != "COMPLETED":
+                pending.append(name)
+            elif conclusion not in ("SUCCESS", "NEUTRAL", "SKIPPED"):
+                failed.append(f"{name}={conclusion}")
+        if failed:
+            raise ReleaseError(f"Release PR checks failed: {', '.join(failed)}")
+        if not pending:
+            return
+        if verbose:
+            print(f"Waiting for release PR checks: {', '.join(pending)}")
+        time.sleep(poll_interval)
+    raise ReleaseError(f"Timed out waiting for release PR #{pr_number} checks")
+
+
+def wait_for_pr_merged(
+    repository: str,
+    pr_number: int,
+    *,
+    timeout: float = DEFAULT_MERGE_TIMEOUT,
+    poll_interval: float = 5.0,
+    verbose: bool = False,
+) -> None:
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        result = gh(
+            ["pr", "view", str(pr_number), "--repo", repository, "--json", "state"],
+            check=False,
+        )
+        if result.returncode == 0 and result.stdout:
+            state_value = json.loads(result.stdout).get("state")
+            if state_value == "MERGED":
+                return
+            if state_value == "CLOSED":
+                raise ReleaseError(f"Release PR #{pr_number} was closed without merging")
+        if verbose:
+            print(f"Waiting for release PR #{pr_number} to merge...")
+        time.sleep(poll_interval)
+    raise ReleaseError(f"Timed out waiting for release PR #{pr_number} to merge")
+
+
+def merge_release_pr(
+    repository: str,
+    pr_number: int,
+    *,
+    verbose: bool = False,
+) -> str:
+    if repo_allow_auto_merge(repository):
+        result = gh(
+            ["pr", "merge", str(pr_number), "--repo", repository, "--auto", "--squash"],
+            check=False,
+        )
+        if result.returncode == 0:
+            if verbose:
+                print("Auto-merge enabled — waiting for CI to merge the PR...")
+            return "auto"
+        if verbose:
+            detail = result.stderr.strip() or result.stdout.strip()
+            print(f"Auto-merge unavailable ({detail}); falling back to direct merge.")
+    wait_for_pr_checks(repository, pr_number, verbose=verbose)
+    gh(["pr", "merge", str(pr_number), "--repo", repository, "--squash"])
+    return "direct"
+
+
+def release_url(repository: str, version: str) -> str:
+    result = gh(
+        ["release", "view", version, "--repo", repository, "--json", "url", "--jq", ".url"],
+        check=False,
+    )
+    if result.returncode == 0 and result.stdout.strip():
+        return result.stdout.strip()
+    return f"https://github.com/{repository}/releases/tag/{version}"
+
+
+def verify_release_published(
+    repository: str,
+    root: str,
+    remote: str,
+    branch: str,
+    version: str,
+) -> str:
+    fetch(root, remote, branch)
+    if not tag_exists(root, version):
+        raise ReleaseError(f"Tag {version} not found after publish-release")
+    return release_url(repository, version)
 
 
 def state(*, remote: str = "origin", branch: str = "main", do_fetch: bool = True) -> ReleaseState:
@@ -307,7 +553,7 @@ def state(*, remote: str = "origin", branch: str = "main", do_fetch: bool = True
     required = required_check_contexts(repository, branch)
     runs = ci_runs(repository, head)
     status, ci_reason = ci_status(runs, required)
-    if reason is None:
+    if reason is None and status == "failed":
         reason = ci_reason
 
     return ReleaseState(
@@ -328,13 +574,20 @@ def state(*, remote: str = "origin", branch: str = "main", do_fetch: bool = True
     )
 
 
-def print_state(state_: ReleaseState, *, verbose: bool) -> None:
+def print_state(
+    state_: ReleaseState,
+    *,
+    verbose: bool,
+    commits: list[UnreleasedCommit],
+) -> None:
     latest = state_.latest_tag or "none"
     print(f"Repository: {state_.repository}")
     print(f"Branch: {state_.remote}/{state_.branch}")
     print(f"HEAD: {state_.short_head}")
     print(f"Latest release: {latest}")
     print(f"Commits since release: {state_.commits_since_release}")
+    for commit in commits:
+        print(f"  {commit.short_sha}  {commit.subject}  ({commit.committed_at[:10]})")
     if state_.required_checks is None:
         print("CI: unchecked (no branch protection)")
     else:
@@ -375,10 +628,13 @@ def to_json(data: Any) -> None:
 
 def command_status(args: argparse.Namespace) -> int:
     state_ = state()
+    commits = unreleased_commits(state_.root, state_.latest_tag, state_.head)
     if args.json:
-        to_json(state_)
+        payload: dict[str, Any] = asdict(state_)
+        payload["unreleased_commits"] = [asdict(c) for c in commits]
+        to_json(payload)
     else:
-        print_state(state_, verbose=args.verbose)
+        print_state(state_, verbose=args.verbose, commits=commits)
     return int(ExitCode.OK if state_.release_allowed else ExitCode.NOT_ALLOWED)
 
 
@@ -407,53 +663,93 @@ def command_doctor(args: argparse.Namespace) -> int:
     return int(ExitCode.OK if ok else ExitCode.ENVIRONMENT)
 
 
-def _dispatch_and_open_pr(
+def run_release(
     state_: ReleaseState,
     version: str,
     *,
     dry_run: bool,
     as_json: bool,
     verbose: bool = False,
+    pr_only: bool = False,
 ) -> int:
     version_num = version.lstrip("v")
     branch = f"release/{version}"
-    workflow = "prepare-release.yml"
     dispatch_args = [
-        "workflow", "run", workflow,
+        "workflow", "run", PREPARE_RELEASE_WORKFLOW,
         "--repo", state_.repository,
         "--field", f"version={version_num}",
         "--field", f"base_sha={state_.head}",
     ]
 
     if dry_run:
+        planned: dict[str, Any] = {
+            "dry_run": True,
+            "version": version,
+            "pr_only": pr_only,
+            "state": state_,
+        }
+        if state_.required_checks and state_.ci_status == "missing":
+            planned["ensure_ci"] = [
+                check_workflow_file(ctx) for ctx in state_.required_checks
+            ]
+        planned["dispatch"] = ["gh"] + dispatch_args
+        if pr_only:
+            planned["stop_after"] = "pr_create"
+        else:
+            planned["stop_after"] = "release_published"
         if as_json:
-            to_json({
-                "dry_run": True, "version": version,
-                "command": ["gh"] + dispatch_args, "state": state_,
-            })
+            to_json(planned)
         else:
             print(
-                f"Would dispatch {workflow} for {version} "
-                f"from {state_.remote}/{state_.branch}@{state_.short_head}"
+                f"Would release {version} from "
+                f"{state_.remote}/{state_.branch}@{state_.short_head}"
             )
+            if state_.required_checks and state_.ci_status != "success":
+                print(f"Would ensure main CI ({state_.ci_status}) before dispatch.")
             print("Would run:", " ".join(["gh"] + dispatch_args))
+            print(f"Would create PR {branch} → {state_.branch}")
+            if pr_only:
+                print("Would stop after opening the PR (--pr-only).")
+            else:
+                merge_mode = "auto-merge" if repo_allow_auto_merge(state_.repository) else "direct merge"
+                print(f"Would merge PR via {merge_mode}, watch publish-release, verify tag.")
         return int(ExitCode.OK)
+
+    if state_.required_checks:
+        if verbose:
+            print("Ensuring required checks on main...")
+        ensure_main_ci(
+            state_.repository,
+            state_.branch,
+            state_.head,
+            state_.required_checks,
+            verbose=verbose,
+        )
+        head = origin_head(state_.root, state_.remote, state_.branch)
+        dispatch_args[-1] = f"base_sha={head}"
 
     dispatch_time = time.time()
     gh(dispatch_args, cwd=state_.root)
     if not as_json:
-        print(f"Dispatched {workflow} for {version} — waiting for run to appear...")
+        print(f"Dispatched {PREPARE_RELEASE_WORKFLOW} for {version} — waiting for run to appear...")
 
-    run_id = wait_for_run(state_.repository, workflow, dispatch_time)
+    prepare_run_id = wait_for_run(
+        state_.repository,
+        PREPARE_RELEASE_WORKFLOW,
+        dispatch_time,
+        timeout=DEFAULT_CHECK_TIMEOUT,
+    )
     if not as_json:
-        print(f"Watching run {run_id}...")
+        print(f"Watching prepare-release run {prepare_run_id}...")
 
     watch_result = run_interactive(
-        ["gh", "run", "watch", run_id, "--repo", state_.repository, "--exit-status"],
+        ["gh", "run", "watch", prepare_run_id, "--repo", state_.repository, "--exit-status"],
         cwd=state_.root,
     )
     if watch_result != 0:
-        raise ReleaseError(f"{workflow} failed for {version} (run {run_id})")
+        raise ReleaseError(
+            f"{PREPARE_RELEASE_WORKFLOW} failed for {version} (run {prepare_run_id})"
+        )
 
     pr_result = gh(
         [
@@ -461,23 +757,70 @@ def _dispatch_and_open_pr(
             "--repo", state_.repository,
             "--title", f"chore: release {version}",
             "--head", branch,
-            "--base", "main",
+            "--base", state_.branch,
             "--body", f"Automated release PR for {version}.",
         ],
         cwd=state_.root,
     )
     pr_url = pr_result.stdout.strip()
+    pr_number = pr_number_from_url(pr_url)
 
-    gh(
-        ["pr", "merge", branch, "--repo", state_.repository, "--auto", "--squash"],
+    if pr_only:
+        payload = {"version": version, "pr_url": pr_url, "pr_number": pr_number, "state": state_}
+        if as_json:
+            to_json(payload)
+        else:
+            print(f"\nRelease PR: {pr_url}")
+            print("Stopped after opening the PR (--pr-only). Merge it manually when ready.")
+        return int(ExitCode.OK)
+
+    merge_time = time.time()
+    merge_mode = merge_release_pr(state_.repository, pr_number, verbose=verbose)
+    if not as_json:
+        if merge_mode == "auto":
+            print(f"Waiting for release PR #{pr_number} to auto-merge...")
+        else:
+            print(f"Merged release PR #{pr_number}; waiting for publish-release...")
+    wait_for_pr_merged(state_.repository, pr_number, verbose=verbose)
+
+    publish_run_id = wait_for_run(
+        state_.repository,
+        PUBLISH_RELEASE_WORKFLOW,
+        merge_time,
+        head_branch=branch,
+        timeout=DEFAULT_PUBLISH_TIMEOUT,
+    )
+    if not as_json:
+        print(f"Watching publish-release run {publish_run_id}...")
+
+    watch_result = run_interactive(
+        ["gh", "run", "watch", publish_run_id, "--repo", state_.repository, "--exit-status"],
         cwd=state_.root,
     )
+    if watch_result != 0:
+        raise ReleaseError(
+            f"{PUBLISH_RELEASE_WORKFLOW} failed for {version} (run {publish_run_id})"
+        )
 
+    url = verify_release_published(
+        state_.repository,
+        state_.root,
+        state_.remote,
+        state_.branch,
+        version,
+    )
+    payload = {
+        "version": version,
+        "pr_url": pr_url,
+        "pr_number": pr_number,
+        "merge_mode": merge_mode,
+        "release_url": url,
+        "state": state_,
+    }
     if as_json:
-        to_json({"version": version, "pr_url": pr_url, "state": state_})
+        to_json(payload)
     else:
-        print(f"\nRelease PR: {pr_url}")
-        print("Auto-merge enabled — CI pass → merge → publish-release creates tag + GitHub Release.")
+        print(f"\nReleased {version}: {url}")
     return int(ExitCode.OK)
 
 
@@ -488,10 +831,15 @@ def command_release(args: argparse.Namespace) -> int:
         if args.json:
             to_json({"release_allowed": False, "reason": state_.refusal_reason, "state": state_})
         else:
-            print_state(state_, verbose=args.verbose)
+            print_state(
+                state_,
+                verbose=args.verbose,
+                commits=unreleased_commits(state_.root, state_.latest_tag, state_.head),
+            )
         return int(ExitCode.NOT_ALLOWED)
-    return _dispatch_and_open_pr(
-        state_, version, dry_run=args.dry_run, as_json=args.json, verbose=args.verbose,
+    return run_release(
+        state_, version, dry_run=args.dry_run, as_json=args.json,
+        verbose=args.verbose, pr_only=args.pr_only,
     )
 
 
@@ -505,7 +853,11 @@ def command_cut(args: argparse.Namespace) -> int:
         if args.json:
             to_json({"release_allowed": False, "reason": state_.refusal_reason, "state": state_})
         else:
-            print_state(state_, verbose=args.verbose)
+            print_state(
+                state_,
+                verbose=args.verbose,
+                commits=unreleased_commits(state_.root, state_.latest_tag, state_.head),
+            )
         return int(ExitCode.NOT_ALLOWED)
     latest = state_.latest_tag
     if latest is not None:
@@ -515,8 +867,32 @@ def command_cut(args: argparse.Namespace) -> int:
             raise ReleaseError(f"Target version {tag} must be greater than latest tag {latest}")
     if tag_exists(state_.root, tag):
         raise ReleaseError(f"Tag {tag} already exists")
-    return _dispatch_and_open_pr(
-        state_, tag, dry_run=args.dry_run, as_json=args.json, verbose=args.verbose,
+    return run_release(
+        state_, tag, dry_run=args.dry_run, as_json=args.json,
+        verbose=args.verbose, pr_only=args.pr_only,
+    )
+
+
+def add_release_arguments(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Run checks without creating a tag.",
+    )
+    parser.add_argument(
+        "--json",
+        action="store_true",
+        help="Print machine-readable JSON output.",
+    )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Print detailed CI run information.",
+    )
+    parser.add_argument(
+        "--pr-only",
+        action="store_true",
+        help="Stop after opening the release PR; do not merge or publish.",
     )
 
 
@@ -542,28 +918,12 @@ def parser() -> argparse.ArgumentParser:
 
     cut = subparsers.add_parser("cut", help="Cut a release with an explicit version.")
     cut.add_argument("target_version", metavar="VERSION", help="Version to release (e.g. 1.2.0 or v1.2.0).")
-    cut.add_argument("--dry-run", action="store_true", help="Run checks without creating a tag.")
-    cut.add_argument("--json", action="store_true", help="Print machine-readable JSON output.")
-    cut.add_argument("--verbose", action="store_true", help="Print detailed CI run information.")
+    add_release_arguments(cut)
     cut.set_defaults(func=command_cut)
 
     for release_type in RELEASE_TYPES:
         release_parser = subparsers.add_parser(release_type, help=f"Cut a {release_type} release.")
-        release_parser.add_argument(
-            "--dry-run",
-            action="store_true",
-            help="Run checks without creating a tag.",
-        )
-        release_parser.add_argument(
-            "--json",
-            action="store_true",
-            help="Print machine-readable JSON output.",
-        )
-        release_parser.add_argument(
-            "--verbose",
-            action="store_true",
-            help="Print detailed CI run information.",
-        )
+        add_release_arguments(release_parser)
         release_parser.set_defaults(func=command_release, release_type=release_type)
 
     return root

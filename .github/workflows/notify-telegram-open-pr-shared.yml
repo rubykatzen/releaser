@@ -1,0 +1,22 @@
+name: Notify Telegram open PRs
+on:
+  workflow_call:
+    secrets:
+      TELEGRAM_BOT_TOKEN:
+        required: true
+      TELEGRAM_CHAT_ID:
+        required: true
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    steps:
+      - uses: actions/checkout@v7
+      - id: format
+        uses: ./.github/actions/format-open-pr-digest
+      - uses: ./.github/actions/send-telegram-message
+        with:
+          message: ${{ steps.format.outputs.message }}
+          telegram-bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          telegram-chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}

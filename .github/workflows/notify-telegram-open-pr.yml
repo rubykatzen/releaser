@@ -1,0 +1,9 @@
+name: Notify Telegram open PRs
+on:
+  schedule:
+    - cron: "0 10 * * *"
+  workflow_dispatch:
+jobs:
+  notify:
+    uses: ./.github/workflows/notify-telegram-open-pr-shared.yml
+    secrets: inherit
