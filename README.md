@@ -2,10 +2,10 @@
 
 `releaser` is an opinionated zero-config release orchestrator for GitHub repositories.
 
-It verifies that `origin/main` is releasable (new commits, CI green), then
-dispatches `prepare-release.yml`, watches it run, opens a `release/vX.Y.Z` PR,
-and enables auto-merge. The annotated tag and GitHub Release are created by
-`publish-release.yml` once the PR merges.
+It verifies that `origin/main` is releasable (new commits, CI green or recoverable),
+dispatches protecting workflows when needed, runs `prepare-release.yml`, opens a
+`release/vX.Y.Z` PR, merges it, and waits until `publish-release.yml` creates the
+annotated tag and GitHub Release.
 
 ## Usage
 
@@ -16,12 +16,18 @@ releaser status
 releaser status --verbose   # includes per-check CI details
 ```
 
-Cut a release (version calculated automatically):
+Cut a full release (version calculated automatically; waits until published):
 
 ```bash
 releaser patch
 releaser minor
 releaser major
+```
+
+Open a release PR and stop (merge manually later):
+
+```bash
+releaser patch --pr-only
 ```
 
 Cut a release with an explicit version:
@@ -54,12 +60,14 @@ releaser patch --dry-run --json
 1. Fetches `origin/main` and finds the latest SemVer tag.
 2. Checks that there are new commits since that tag and lists them in `status`.
 3. Queries GitHub branch protection to find required CI checks.
-4. Verifies all required checks passed for the `origin/main` SHA.
+4. If required checks are missing on the `origin/main` SHA, dispatches `{check}.yml`
+   workflows (zero-config convention) and waits until they pass.
 5. Dispatches `prepare-release.yml` with the computed `version` and `base_sha`.
 6. Watches the workflow run; aborts if it fails.
-7. Opens a PR from `release/vX.Y.Z` → `main` and enables auto-merge.
-8. `publish-release.yml` fires on PR merge and creates the annotated tag and
-   GitHub Release.
+7. Opens a PR from `release/vX.Y.Z` → `main`.
+8. Unless `--pr-only`: merges the PR (auto-merge when the repo allows it, otherwise
+   waits for PR checks and merges directly), watches `publish-release.yml`, and
+   verifies the tag and GitHub Release exist.
 
 ## Contract
 
@@ -67,7 +75,9 @@ releaser patch --dry-run --json
 - Release source is `origin/main`, not local `HEAD`.
 - Local dirty worktrees do not block releases.
 - Release tags use `vMAJOR.MINOR.PATCH` and are annotated.
-- GitHub Actions must have successful runs for the `origin/main` SHA.
+- GitHub Actions must have successful check runs for the `origin/main` SHA
+  (protecting workflows must expose `workflow_dispatch` and use job names matching
+  branch-protection contexts, e.g. check `lint` → `lint.yml`).
 - The repository must provide `prepare-release.yml` (triggered by workflow
   dispatch) and `publish-release.yml` (triggered by merged `release/*` PRs).
 - GitHub Releases are created by `publish-release.yml`, not by the CLI.
@@ -88,9 +98,9 @@ releaser patch --dry-run
 ```
 
 `prepare-release.yml` fires on dispatch, creates the `release/vX.Y.Z` branch,
-generates AI release notes, bumps `pyproject.toml`, and opens a PR with
-auto-merge enabled. `publish-release.yml` fires on PR merge and creates the
-annotated tag and GitHub Release.
+generates AI release notes, bumps `pyproject.toml`, and pushes the branch.
+By default the CLI then merges the PR and waits for `publish-release.yml`.
+Use `--pr-only` to stop after opening the PR.
 
 ## Installation
 

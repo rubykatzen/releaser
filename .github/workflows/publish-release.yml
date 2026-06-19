@@ -34,4 +34,5 @@ jobs:
           version="${RELEASE_BRANCH#release/v}"
           gh workflow run update-formulas.yml \
             --repo rubykatzen/homebrew-tap \
+            --field project="releaser" \
             --field version="${version}"

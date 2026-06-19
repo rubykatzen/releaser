@@ -1,0 +1,79 @@
+name: Update Homebrew formula
+description: Update a Homebrew formula from a GitHub source archive.
+inputs:
+  formula:
+    description: Formula name without .rb suffix.
+    required: true
+  repository:
+    description: Source GitHub repository in owner/name form.
+    required: true
+  version:
+    description: Release version without v prefix.
+    required: true
+  class-name:
+    description: Ruby formula class name.
+    required: true
+  description:
+    description: Homebrew formula description.
+    required: true
+  test-match:
+    description: Text expected in the formula binary help output.
+    required: true
+  token:
+    description: GitHub token.
+    required: false
+    default: ${{ github.token }}
+runs:
+  using: composite
+  steps:
+    - name: Update and commit formula
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        formula="${{ inputs.formula }}"
+        repository="${{ inputs.repository }}"
+        version="${{ inputs.version }}"
+        class_name="${{ inputs.class-name }}"
+        desc="${{ inputs.description }}"
+        test_match="${{ inputs.test-match }}"
+        archive_path="archive/refs/tags/v${version}.tar.gz"
+        url="https://github.com/${repository}/${archive_path}"
+        sha256="$(curl -fsSL "$url" | shasum -a 256 | awk '{print $1}')"
+        mkdir -p Formula
+        cat > "Formula/${formula}.rb" <<EOF
+        class ${class_name} < Formula
+          include Language::Python::Virtualenv
+          desc "${desc}"
+          homepage "https://github.com/${repository}"
+          url "${url}"
+          sha256 "${sha256}"
+          license "MIT"
+          livecheck do
+            url :stable
+            regex(/^v?(\\d+(?:\\.\\d+)+)$/i)
+          end
+          depends_on "gh"
+          depends_on "git"
+          depends_on "python@3.13"
+          def install
+            virtualenv_install_with_resources
+          end
+          test do
+            output = shell_output("#{bin}/${formula} --help")
+            assert_match "${test_match}", output
+          end
+        end
+        EOF
+        ruby -pi -e 'gsub(/^ {8}/, "")' "Formula/${formula}.rb"
+        git config user.name "github-actions[bot]"
+        bot_email="41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.email "$bot_email"
+        git add "Formula/${formula}.rb"
+        if git diff --cached --quiet; then
+          echo "No formula updates to push."
+        else
+          git commit -m "${formula}: update to v${version}"
+          git push
+        fi
