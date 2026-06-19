@@ -2,6 +2,13 @@
 
 ## [Unreleased]
 
+## [v0.4.2] - 2026-06-19
+
+- feat: filter Dependabot auto-merge by update type (#38)
+- fix: disable Telegram link previews and remove @ from GitHub usernames (#37)
+- chore(deps): bump https://github.com/rubykatzen/baseline
+- chore(deps): bump rubykatzen/baseline from 0.5.1 to 0.5.3
+
 ## [v0.4.1] - 2026-06-19
 
 
