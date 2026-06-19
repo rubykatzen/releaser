@@ -1,6 +1,14 @@
 name: Merge Dependabot PR
-on:
+"on":
   workflow_call:
+    inputs:
+      max-update-type:
+        description: Highest semver update type to auto-merge (patch, minor, or major).
+        required: true
+        type: string
+concurrency:
+  group: ${{ github.repository }}-dependabot-automerge
+  cancel-in-progress: false
 jobs:
   merge:
     if: github.actor == 'dependabot[bot]'
@@ -9,7 +17,16 @@ jobs:
       pull-requests: write
       contents: write
     steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v3
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
       - name: Merge
+        if: |
+          (inputs.max-update-type == 'patch' && steps.metadata.outputs.update-type == 'version-update:semver-patch') ||
+          (inputs.max-update-type == 'minor' && contains(fromJSON('["version-update:semver-patch","version-update:semver-minor"]'), steps.metadata.outputs.update-type)) ||
+          (inputs.max-update-type == 'major')
         run: gh pr merge "${{ github.event.pull_request.number }}" --merge --auto --repo "${{ github.repository }}"
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
