@@ -1,5 +1,10 @@
 # Changelog
 
+## [Unreleased]
+
+- feat: include CHANGELOG `[Unreleased]` draft notes in AI release summarization
+- feat: replace `[Unreleased]` section with empty stub when cutting a release
+
 ## [v0.4.0] - 2026-06-19
 
 - feat: close the release loop in releaser CLI (#22)

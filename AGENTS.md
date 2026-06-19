@@ -35,9 +35,9 @@ repositories. It is the release engine used by all `rubykatzen` repos.
 - `tests/test_versions.py` — unit tests for version bump logic
 - `.github/actions/` — composite actions used by consuming repos:
   - `verify-release` — checks `base_sha` still matches `origin/main` and lint is green
-  - `generate-notes` — generates release notes via GitHub Models API (gpt-4o-mini) from commit messages; uses the GitHub token, no separate API key required
+  - `generate-notes` — generates release notes via GitHub Models API (gpt-4o-mini) from commit messages and optional `CHANGELOG.md` `[Unreleased]` draft notes; uses the GitHub token, no separate API key required
   - `prepare-release-branch` — creates the `release/vX.Y.Z` branch
-  - `update-changelog` — prepends the new entry to `CHANGELOG.md`
+  - `update-changelog` — promotes release notes into `CHANGELOG.md`, replacing the `[Unreleased]` section with an empty stub and inserting the new version entry below it
   - `bump-pyproject-version` — bumps `version` in `pyproject.toml`
   - `bump-ruby-gem-version` — bumps `VERSION` constant in `lib/**/version.rb`; silently skips if no such file exists
   - `push-release-branch` — pushes the release branch to origin
