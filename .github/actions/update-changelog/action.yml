@@ -18,7 +18,8 @@ runs:
         set -euo pipefail
         tag="v${{ inputs.version }}"
         date=$(date -u +%Y-%m-%d)
-        new_entry="## [${tag}] - ${date}"$'\n\n'"${NOTES}"
+        notes=$(printf '%s' "${NOTES}" | awk 'NF{p=1} p')
+        new_entry="## [${tag}] - ${date}"$'\n\n'"${notes}"
         if [ -f CHANGELOG.md ]; then
           current=$(cat CHANGELOG.md)
           if printf '%s' "$current" | head -1 | grep -q '^# Changelog'; then
