@@ -1,5 +1,6 @@
+---
 name: Update Homebrew Formulas
-on:
+"on":
   workflow_call:
     inputs:
       repository:
@@ -7,7 +8,7 @@ on:
         required: true
         type: string
       formula:
-        description: Formula name without .rb suffix; defaults to repository name
+        description: Formula name without .rb suffix
         required: false
         type: string
         default: ""
