@@ -1,43 +1,31 @@
+---
 name: Update Homebrew Formulas
-on:
+"on":
   workflow_call:
     inputs:
+      repository:
+        description: Released GitHub repository in owner/name form
+        required: true
+        type: string
       formula:
         description: Formula name without .rb suffix
-        required: true
+        required: false
         type: string
-      repository:
-        description: Source GitHub repository in owner/name form
-        required: true
+        default: ""
+      tap:
+        description: Tap name in owner/repo form
+        required: false
         type: string
-      version:
-        description: New version without v prefix
-        required: true
-        type: string
-      class-name:
-        description: Ruby formula class name
-        required: true
-        type: string
-      description:
-        description: Homebrew formula description
-        required: true
-        type: string
-      test-match:
-        description: Text expected in the formula binary help output
-        required: true
-        type: string
+        default: rubykatzen/tap
 jobs:
   update:
     runs-on: macos-latest
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v6
-      - uses: rubykatzen/releaser/.github/actions/update-homebrew-formula@v0.3.5
+      - uses: actions/checkout@v7
+      - uses: rubykatzen/releaser/.github/actions/update-homebrew-formula@v0.4.1
         with:
-          formula: ${{ inputs.formula }}
           repository: ${{ inputs.repository }}
-          version: ${{ inputs.version }}
-          class-name: ${{ inputs.class-name }}
-          description: ${{ inputs.description }}
-          test-match: ${{ inputs.test-match }}
+          formula: ${{ inputs.formula }}
+          tap: ${{ inputs.tap }}
