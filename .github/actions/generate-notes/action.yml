@@ -22,8 +22,6 @@ runs:
         GH_TOKEN: ${{ inputs.token }}
       run: |
         set -euo pipefail
-        # shellcheck source=../lib/changelog.sh
-        source "${{ github.action_path }}/../lib/changelog.sh"
         tag="v${{ inputs.version }}"
         prev_tag=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | grep -v "^${tag}$" | head -1 || true)
         if [ -n "$prev_tag" ]; then
@@ -32,32 +30,15 @@ runs:
           commits=$(git log HEAD --format="- %s" --no-merges | head -50)
         fi
         unreleased=""
-        if [ -f CHANGELOG.md ]; then
-          unreleased=$(extract_unreleased_content CHANGELOG.md)
-        fi
+        [ -f CHANGELOG.md ] && unreleased=$(awk '/^## \[Unreleased\]/{f=1;next} f && /^## \[/{exit} f{print}' CHANGELOG.md)
         notes=""
         if [ -n "$commits" ] || [ -n "$unreleased" ]; then
-          prompt="You are writing a changelog entry for a software release."
-          if [ -n "$unreleased" ]; then
-            prompt="${prompt} Below are draft notes from the CHANGELOG [Unreleased] section."
-          fi
-          if [ -n "$commits" ]; then
-            prompt="${prompt} Below are the git commits in this release."
-          fi
-          prompt="${prompt} Write a concise 2-4 sentence summary in English describing what changed. Write plain prose — no bullet points, no headers."
-          content="${prompt}"
-          if [ -n "$unreleased" ]; then
-            content="${content}"$'\n\n'"Draft [Unreleased] notes:"$'\n'"${unreleased}"
-          fi
-          if [ -n "$commits" ]; then
-            content="${content}"$'\n\n'"Commits:"$'\n'"${commits}"
-          fi
+          content="You are writing a changelog entry for a software release. Write a concise 2-4 sentence summary in English describing what changed. Write plain prose — no bullet points, no headers."
+          [ -n "$unreleased" ] && content="${content}"$'\n\n'"Draft notes:"$'\n'"${unreleased}"
+          [ -n "$commits" ] && content="${content}"$'\n\n'"Commits:"$'\n'"${commits}"
           payload=$(jq -n --arg content "$content" '{
             model: "gpt-4o-mini",
-            messages: [{
-              role: "user",
-              content: $content
-            }],
+            messages: [{role: "user", content: $content}],
             max_tokens: 300
           }')
           response=$(curl -sf \
@@ -67,13 +48,7 @@ runs:
             -d "$payload" || true)
           notes=$(echo "$response" | jq -r '.choices[0].message.content // empty' 2>/dev/null || true)
         fi
-        if [ -z "$notes" ]; then
-          if [ -n "$unreleased" ]; then
-            notes="$unreleased"
-          else
-            notes="${commits:-No changes}"
-          fi
-        fi
+        [ -z "$notes" ] && notes="${unreleased:-${commits:-No changes}}"
         {
           echo "notes<<RELEASE_NOTES_EOF"
           printf '%s' "$notes"

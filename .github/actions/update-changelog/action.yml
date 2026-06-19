@@ -16,15 +16,13 @@ runs:
         NOTES: ${{ inputs.notes }}
       run: |
         set -euo pipefail
-        # shellcheck source=../lib/changelog.sh
-        source "${{ github.action_path }}/../lib/changelog.sh"
         tag="v${{ inputs.version }}"
         date=$(date -u +%Y-%m-%d)
         new_entry="## [${tag}] - ${date}"$'\n\n'"${NOTES}"
         if [ -f CHANGELOG.md ]; then
           current=$(cat CHANGELOG.md)
           if printf '%s' "$current" | head -1 | grep -q '^# Changelog'; then
-            rest=$(printf '%s' "$current" | tail -n +3 | strip_unreleased_section)
+            rest=$(printf '%s' "$current" | tail -n +3 | awk '/^## \[Unreleased\]/{skip=1;next} skip && /^## \[/{skip=0} !skip{print}')
             new_content="# Changelog"$'\n\n'"## [Unreleased]"$'\n\n'"${new_entry}"$'\n\n'"${rest}"
           else
             new_content="${new_entry}"$'\n\n'"${current}"
