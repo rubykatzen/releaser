@@ -6,6 +6,9 @@ name: Merge Dependabot PR
         description: Highest semver update type to auto-merge (patch, minor, or major).
         required: true
         type: string
+concurrency:
+  group: ${{ github.repository }}-dependabot-automerge
+  cancel-in-progress: false
 jobs:
   merge:
     if: github.actor == 'dependabot[bot]'
