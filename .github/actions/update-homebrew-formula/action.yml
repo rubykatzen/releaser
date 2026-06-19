@@ -1,79 +1,98 @@
 name: Update Homebrew formula
-description: Update a Homebrew formula from a GitHub source archive.
+description: Update a Homebrew formula to the latest upstream version using Homebrew tooling.
 inputs:
-  formula:
-    description: Formula name without .rb suffix.
-    required: true
   repository:
-    description: Source GitHub repository in owner/name form.
+    description: Released GitHub repository in owner/name form.
     required: true
-  version:
-    description: Release version without v prefix.
-    required: true
-  class-name:
-    description: Ruby formula class name.
-    required: true
-  description:
-    description: Homebrew formula description.
-    required: true
-  test-match:
-    description: Text expected in the formula binary help output.
-    required: true
+  formula:
+    description: Formula name without .rb suffix. Defaults to the repository name.
+    required: false
+    default: ""
+  tap:
+    description: Tap name in owner/repo form.
+    required: false
+    default: rubykatzen/tap
   token:
     description: GitHub token.
     required: false
     default: ${{ github.token }}
+outputs:
+  formula:
+    description: Formula that was checked.
+    value: ${{ steps.bump.outputs.formula }}
+  current:
+    description: Stable formula version before the bump.
+    value: ${{ steps.bump.outputs.current }}
+  latest:
+    description: Latest upstream version reported by livecheck.
+    value: ${{ steps.bump.outputs.latest }}
+  changed:
+    description: Whether the formula was updated.
+    value: ${{ steps.bump.outputs.changed }}
 runs:
   using: composite
   steps:
-    - name: Update and commit formula
+    - name: Bump formula to latest upstream version
+      id: bump
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
+        HOMEBREW_NO_AUTO_UPDATE: "1"
       run: |
         set -euo pipefail
-        formula="${{ inputs.formula }}"
+
         repository="${{ inputs.repository }}"
-        version="${{ inputs.version }}"
-        class_name="${{ inputs.class-name }}"
-        desc="${{ inputs.description }}"
-        test_match="${{ inputs.test-match }}"
-        archive_path="archive/refs/tags/v${version}.tar.gz"
-        url="https://github.com/${repository}/${archive_path}"
-        sha256="$(curl -fsSL "$url" | shasum -a 256 | awk '{print $1}')"
-        mkdir -p Formula
-        cat > "Formula/${formula}.rb" <<EOF
-        class ${class_name} < Formula
-          include Language::Python::Virtualenv
-          desc "${desc}"
-          homepage "https://github.com/${repository}"
-          url "${url}"
-          sha256 "${sha256}"
-          license "MIT"
-          livecheck do
-            url :stable
-            regex(/^v?(\\d+(?:\\.\\d+)+)$/i)
-          end
-          depends_on "gh"
-          depends_on "git"
-          depends_on "python@3.13"
-          def install
-            virtualenv_install_with_resources
-          end
-          test do
-            output = shell_output("#{bin}/${formula} --help")
-            assert_match "${test_match}", output
-          end
-        end
-        EOF
-        ruby -pi -e 'gsub(/^ {8}/, "")' "Formula/${formula}.rb"
+        tap="${{ inputs.tap }}"
+        formula="${{ inputs.formula }}"
+        if [ -z "$formula" ]; then
+          formula="${repository##*/}"
+        fi
+        full_formula="${tap}/${formula}"
+        formula_path="Formula/${formula}.rb"
+
+        if [ ! -f "$formula_path" ]; then
+          echo "Formula not found: $formula_path" >&2
+          exit 1
+        fi
+
+        brew tap "$tap" "$PWD"
+
+        latest="$(brew livecheck "$full_formula" --json | jq -r '.[0].version.latest // ""')"
+        current="$(brew info "$full_formula" --json=v2 | jq -r '.formulae[0].versions.stable // ""')"
+
+        if [ -z "$latest" ] || [ "$latest" = "null" ]; then
+          echo "Could not resolve latest version for $full_formula" >&2
+          exit 1
+        fi
+
+        echo "formula=$formula" >> "$GITHUB_OUTPUT"
+        echo "current=$current" >> "$GITHUB_OUTPUT"
+        echo "latest=$latest" >> "$GITHUB_OUTPUT"
+
+        if [ "$latest" = "$current" ]; then
+          echo "$full_formula already current ($current)."
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        brew bump-formula-pr "$full_formula" \
+          --version "$latest" \
+          --write-only \
+          --strict \
+          --online \
+          --no-browse \
+          --no-fork
+
         git config user.name "github-actions[bot]"
         bot_email="41898282+github-actions[bot]@users.noreply.github.com"
         git config user.email "$bot_email"
-        git add "Formula/${formula}.rb"
+        git add "$formula_path"
+
         if git diff --cached --quiet; then
-          echo "No formula updates to push."
+          echo "Homebrew reported latest=$latest, but no formula changes were produced."
+          echo "changed=false" >> "$GITHUB_OUTPUT"
         else
-          git commit -m "${formula}: update to v${version}"
+          git commit -m "${formula}: update to v${latest}"
           git push
+          echo "changed=true" >> "$GITHUB_OUTPUT"
         fi
