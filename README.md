@@ -52,7 +52,7 @@ releaser patch --dry-run --json
 ## How it works
 
 1. Fetches `origin/main` and finds the latest SemVer tag.
-2. Checks that there are new commits since that tag.
+2. Checks that there are new commits since that tag and lists them in `status`.
 3. Queries GitHub branch protection to find required CI checks.
 4. Verifies all required checks passed for the `origin/main` SHA.
 5. Dispatches `prepare-release.yml` with the computed `version` and `base_sha`.
