@@ -44,7 +44,7 @@ runs:
             reopened) event="PR reopened" ;;
             *) event="PR opened" ;;
           esac
-          msg=$(printf '🟢 %s — %s\n#%s %s\n@%s · %s' \
+          msg=$(printf '🟢 %s — %s\n#%s %s\n%s · %s' \
             "$REPO" "$event" "$number" "$title" "$author" "$url")
         fi
         delimiter="ghdelim_$(openssl rand -hex 8)"

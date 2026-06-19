@@ -33,4 +33,4 @@ runs:
           -d "$(jq -n \
             --arg c "$CHAT_ID" \
             --arg t "$MESSAGE" \
-            '{chat_id: $c, text: $t}')"
+            '{chat_id: $c, text: $t, link_preview_options: {is_disabled: true}}')"

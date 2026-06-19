@@ -34,7 +34,7 @@ runs:
         issue=$(gh issue view "$ISSUE_NUMBER" --repo "$REPO" --json title,url)
         title=$(echo "$issue" | jq -r '.title')
         url=$(echo "$issue" | jq -r '.url')
-        msg=$(printf '🟢 %s — issue closed\n#%s %s\n@%s · %s' \
+        msg=$(printf '🟢 %s — issue closed\n#%s %s\n%s · %s' \
           "$REPO" "$ISSUE_NUMBER" "$title" "$ACTOR" "$url")
         delimiter="ghdelim_$(openssl rand -hex 8)"
         {
