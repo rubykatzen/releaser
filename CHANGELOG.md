@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v0.4.3] - 2026-06-19
+
+- fix: strip leading blank lines from notes in update-changelog (#40)
+- chore: set Dependabot auto-merge to patch-only
+
 ## [v0.4.2] - 2026-06-19
 
 - feat: filter Dependabot auto-merge by update type (#38)
