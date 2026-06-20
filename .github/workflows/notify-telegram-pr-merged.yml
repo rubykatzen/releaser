@@ -1,0 +1,11 @@
+name: Notify Telegram PR merged
+"on":
+  pull_request:
+    types: [closed]
+jobs:
+  notify:
+    if: github.event.pull_request.merged == true
+    uses: ./.github/workflows/notify-telegram-pr-merged-shared.yml
+    with:
+      pr-number: ${{ github.event.pull_request.number }}
+    secrets: inherit
