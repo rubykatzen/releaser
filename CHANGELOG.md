@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v0.4.4] - 2026-06-20
+
+- fix: update Gemfile.lock when gem is a path dependency (#43)
+- fix: wait for PR checks to appear before merging (#42)
+
 ## [v0.4.3] - 2026-06-19
 
 - fix: strip leading blank lines from notes in update-changelog (#40)
