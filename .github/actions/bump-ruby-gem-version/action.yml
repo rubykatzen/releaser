@@ -21,8 +21,7 @@ runs:
         git add "$file"
         git diff --cached --quiet || git commit -m "chore: bump version to ${{ inputs.version }}"
         if [ -f Gemfile.lock ] && grep -q 'remote: \.' Gemfile.lock && command -v bundle > /dev/null 2>&1; then
-          gem_name=$(basename "$(ls *.gemspec 2>/dev/null | head -1)" .gemspec)
-          bundle update "$gem_name"
+          bundle install
           git add Gemfile.lock
           git diff --cached --quiet || git commit -m "chore: update Gemfile.lock for ${{ inputs.version }}"
         fi
