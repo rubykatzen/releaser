@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [v0.4.5] - 2026-06-20
+
+- fix: use bundle install instead of bundle update for Gemfile.lock
+
 ## [v0.4.4] - 2026-06-20
 
 - fix: update Gemfile.lock when gem is a path dependency (#43)
