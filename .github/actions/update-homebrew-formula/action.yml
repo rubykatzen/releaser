@@ -76,7 +76,6 @@ runs:
         brew bump-formula-pr "$full_formula" \
           --version "$latest" \
           --write-only \
-          --strict \
           --no-browse \
           --no-fork
         git config user.name "github-actions[bot]"
@@ -87,6 +86,7 @@ runs:
           echo "Homebrew reported latest=$latest, but no formula changes were produced."
           echo "changed=false" >> "$GITHUB_OUTPUT"
         else
+          brew audit --strict "$full_formula"
           git commit -m "${formula}: update to v${latest}"
           git push
           echo "changed=true" >> "$GITHUB_OUTPUT"
