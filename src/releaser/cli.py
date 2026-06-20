@@ -418,10 +418,12 @@ def wait_for_pr_checks(
     pr_number: int,
     *,
     timeout: float = DEFAULT_CHECK_TIMEOUT,
+    checks_grace_period: float = 30.0,
     poll_interval: float = 5.0,
     verbose: bool = False,
 ) -> None:
     deadline = time.time() + timeout
+    checks_deadline = time.time() + checks_grace_period
     while time.time() < deadline:
         result = gh(
             [
@@ -436,6 +438,9 @@ def wait_for_pr_checks(
             continue
         rollup = json.loads(result.stdout).get("statusCheckRollup") or []
         if not rollup:
+            if time.time() < checks_deadline:
+                time.sleep(poll_interval)
+                continue
             return
         pending: list[str] = []
         failed: list[str] = []
