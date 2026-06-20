@@ -5,6 +5,7 @@ from releaser.cli import (
     CommandResult,
     check_workflow_file,
     ci_status,
+    merge_release_pr,
     pr_number_from_url,
     wait_for_pr_checks,
     wait_for_run,
@@ -70,14 +71,60 @@ def test_wait_for_run_filters_by_head_branch(monkeypatch) -> None:
     assert run_id == "2"
 
 
-def test_wait_for_pr_checks_allows_empty_rollup(monkeypatch) -> None:
+def test_wait_for_pr_checks_waits_for_checks_to_appear(monkeypatch) -> None:
+    responses = [
+        {"statusCheckRollup": []},
+        {"statusCheckRollup": [{"name": "lint", "status": "COMPLETED", "conclusion": "SUCCESS"}]},
+    ]
+
     def fake_gh(*args, **kwargs):
-        return CommandResult(
-            returncode=0,
-            stdout=json.dumps({"statusCheckRollup": []}),
-            stderr="",
-        )
+        return CommandResult(returncode=0, stdout=json.dumps(responses.pop(0)), stderr="")
 
     monkeypatch.setattr("releaser.cli.gh", fake_gh)
 
-    wait_for_pr_checks("org/repo", 21)
+    wait_for_pr_checks("org/repo", 21, poll_interval=0)
+
+
+def test_merge_release_pr_waits_when_branch_has_required_checks(monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr("releaser.cli.repo_allow_auto_merge", lambda _: False)
+    monkeypatch.setattr("releaser.cli.required_check_contexts", lambda repo, branch: ["lint"])
+
+    def fake_gh(args, **kwargs):
+        calls.append(list(args))
+        if args[:2] == ["pr", "view"]:
+            return CommandResult(
+                returncode=0,
+                stdout=json.dumps({"statusCheckRollup": [
+                    {"name": "lint", "status": "COMPLETED", "conclusion": "SUCCESS"},
+                ]}),
+                stderr="",
+            )
+        return CommandResult(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr("releaser.cli.gh", fake_gh)
+
+    mode = merge_release_pr("org/repo", 21, "main")
+
+    assert mode == "direct"
+    assert any(c[:2] == ["pr", "view"] for c in calls)
+    assert any(c[:2] == ["pr", "merge"] for c in calls)
+
+
+def test_merge_release_pr_skips_checks_when_no_branch_protection(monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr("releaser.cli.repo_allow_auto_merge", lambda _: False)
+    monkeypatch.setattr("releaser.cli.required_check_contexts", lambda repo, branch: None)
+
+    def fake_gh(args, **kwargs):
+        calls.append(list(args))
+        return CommandResult(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr("releaser.cli.gh", fake_gh)
+
+    mode = merge_release_pr("org/repo", 21, "main")
+
+    assert mode == "direct"
+    assert not any(c[:2] == ["pr", "view"] for c in calls)

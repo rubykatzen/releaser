@@ -436,7 +436,10 @@ def wait_for_pr_checks(
             continue
         rollup = json.loads(result.stdout).get("statusCheckRollup") or []
         if not rollup:
-            return
+            if verbose:
+                print(f"Waiting for checks to register on PR #{pr_number}...")
+            time.sleep(poll_interval)
+            continue
         pending: list[str] = []
         failed: list[str] = []
         for check in rollup:
@@ -486,6 +489,7 @@ def wait_for_pr_merged(
 def merge_release_pr(
     repository: str,
     pr_number: int,
+    branch: str,
     *,
     verbose: bool = False,
 ) -> str:
@@ -501,7 +505,11 @@ def merge_release_pr(
         if verbose:
             detail = result.stderr.strip() or result.stdout.strip()
             print(f"Auto-merge unavailable ({detail}); falling back to direct merge.")
-    wait_for_pr_checks(repository, pr_number, verbose=verbose)
+    required = required_check_contexts(repository, branch)
+    if required:
+        if verbose:
+            print(f"Branch {branch} has required checks — waiting for PR #{pr_number}...")
+        wait_for_pr_checks(repository, pr_number, verbose=verbose)
     gh(["pr", "merge", str(pr_number), "--repo", repository, "--squash"])
     return "direct"
 
@@ -775,7 +783,7 @@ def run_release(
         return int(ExitCode.OK)
 
     merge_time = time.time()
-    merge_mode = merge_release_pr(state_.repository, pr_number, verbose=verbose)
+    merge_mode = merge_release_pr(state_.repository, pr_number, state_.branch, verbose=verbose)
     if not as_json:
         if merge_mode == "auto":
             print(f"Waiting for release PR #{pr_number} to auto-merge...")
