@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [v0.4.7] - 2026-06-20
+
+- fix: run brew audit separately after bump to avoid silent no-op
+
 ## [v0.4.6] - 2026-06-20
 
 - fix: move dependabot actor check to caller for consistency (#49)
