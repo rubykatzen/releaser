@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v0.4.6] - 2026-06-20
+
+- fix: move dependabot actor check to caller for consistency (#49)
+- feat: notify Telegram when a PR is merged (#48)
+
 ## [v0.4.5] - 2026-06-20
 
 - fix: use bundle install instead of bundle update for Gemfile.lock
