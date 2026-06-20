@@ -1,0 +1,42 @@
+name: Format PR merged message
+description: Build notification text when a pull request is merged.
+inputs:
+  repository:
+    description: GitHub repository slug (owner/name).
+    required: false
+    default: ${{ github.repository }}
+  pr-number:
+    description: Pull request number.
+    required: true
+  token:
+    description: GitHub token for gh API calls.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  message:
+    description: Notification text.
+    value: ${{ steps.format.outputs.message }}
+runs:
+  using: composite
+  steps:
+    - id: format
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        REPO: ${{ inputs.repository }}
+        PR_NUMBER: ${{ inputs.pr-number }}
+      run: |
+        set -euo pipefail
+        pr=$(gh pr view "$PR_NUMBER" --repo "$REPO" --json number,title,author,url)
+        number=$(echo "$pr" | jq -r '.number')
+        title=$(echo "$pr" | jq -r '.title')
+        author=$(echo "$pr" | jq -r '.author.login')
+        url=$(echo "$pr" | jq -r '.url')
+        msg=$(printf '🟣 %s — PR merged\n#%s %s\n%s · %s' \
+          "$REPO" "$number" "$title" "$author" "$url")
+        delimiter="ghdelim_$(openssl rand -hex 8)"
+        {
+          echo "message<<$delimiter"
+          echo "$msg"
+          echo "$delimiter"
+        } >> "$GITHUB_OUTPUT"
