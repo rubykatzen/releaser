@@ -4,6 +4,7 @@ on:
     types: [opened, reopened, synchronize]
 jobs:
   merge:
+    if: github.actor == 'dependabot[bot]'
     uses: ./.github/workflows/merge-dependabot-pr-shared.yml
     with:
       max-update-type: patch

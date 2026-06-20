@@ -11,7 +11,6 @@ concurrency:
   cancel-in-progress: false
 jobs:
   merge:
-    if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
     permissions:
       pull-requests: write
