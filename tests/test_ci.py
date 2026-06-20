@@ -5,6 +5,7 @@ from releaser.cli import (
     CommandResult,
     check_workflow_file,
     ci_status,
+    merge_release_pr,
     pr_number_from_url,
     wait_for_pr_checks,
     wait_for_run,
@@ -70,7 +71,7 @@ def test_wait_for_run_filters_by_head_branch(monkeypatch) -> None:
     assert run_id == "2"
 
 
-def test_wait_for_pr_checks_allows_empty_rollup(monkeypatch) -> None:
+def test_wait_for_pr_checks_returns_when_checks_never_appear(monkeypatch) -> None:
     def fake_gh(*args, **kwargs):
         return CommandResult(
             returncode=0,
@@ -80,4 +81,37 @@ def test_wait_for_pr_checks_allows_empty_rollup(monkeypatch) -> None:
 
     monkeypatch.setattr("releaser.cli.gh", fake_gh)
 
-    wait_for_pr_checks("org/repo", 21)
+    wait_for_pr_checks("org/repo", 21, checks_appear_timeout=0)
+
+
+def test_merge_release_pr_waits_for_checks_on_policy_rejection(monkeypatch) -> None:
+    calls: list[list[str]] = []
+
+    monkeypatch.setattr("releaser.cli.repo_allow_auto_merge", lambda _: False)
+
+    def fake_gh(args, **kwargs):
+        calls.append(list(args))
+        merge_attempt = sum(1 for c in calls if c[:2] == ["pr", "merge"])
+        if args[:2] == ["pr", "merge"] and merge_attempt == 1:
+            return CommandResult(
+                returncode=1,
+                stdout="",
+                stderr="Pull request #21 is not mergeable: the base branch policy prohibits the merge.",
+            )
+        if args[:2] == ["pr", "view"]:
+            return CommandResult(
+                returncode=0,
+                stdout=json.dumps({"statusCheckRollup": [
+                    {"name": "lint", "status": "COMPLETED", "conclusion": "SUCCESS"},
+                ]}),
+                stderr="",
+            )
+        return CommandResult(returncode=0, stdout="", stderr="")
+
+    monkeypatch.setattr("releaser.cli.gh", fake_gh)
+
+    mode = merge_release_pr("org/repo", 21)
+
+    assert mode == "direct"
+    merge_calls = [c for c in calls if c[:2] == ["pr", "merge"]]
+    assert len(merge_calls) == 2

@@ -418,12 +418,12 @@ def wait_for_pr_checks(
     pr_number: int,
     *,
     timeout: float = DEFAULT_CHECK_TIMEOUT,
-    checks_grace_period: float = 30.0,
+    checks_appear_timeout: float = 60.0,
     poll_interval: float = 5.0,
     verbose: bool = False,
 ) -> None:
     deadline = time.time() + timeout
-    checks_deadline = time.time() + checks_grace_period
+    checks_appear_deadline = time.time() + checks_appear_timeout
     while time.time() < deadline:
         result = gh(
             [
@@ -438,10 +438,12 @@ def wait_for_pr_checks(
             continue
         rollup = json.loads(result.stdout).get("statusCheckRollup") or []
         if not rollup:
-            if time.time() < checks_deadline:
-                time.sleep(poll_interval)
-                continue
-            return
+            if time.time() >= checks_appear_deadline:
+                return
+            if verbose:
+                print(f"Waiting for checks to register on PR #{pr_number}...")
+            time.sleep(poll_interval)
+            continue
         pending: list[str] = []
         failed: list[str] = []
         for check in rollup:
@@ -506,9 +508,18 @@ def merge_release_pr(
         if verbose:
             detail = result.stderr.strip() or result.stdout.strip()
             print(f"Auto-merge unavailable ({detail}); falling back to direct merge.")
-    wait_for_pr_checks(repository, pr_number, verbose=verbose)
-    gh(["pr", "merge", str(pr_number), "--repo", repository, "--squash"])
-    return "direct"
+    result = gh(["pr", "merge", str(pr_number), "--repo", repository, "--squash"], check=False)
+    if result.returncode == 0:
+        return "direct"
+    combined = (result.stderr + result.stdout).lower()
+    if "base branch policy" in combined or "not mergeable" in combined:
+        if verbose:
+            print(f"Merge blocked by branch protection — waiting for checks on PR #{pr_number}...")
+        wait_for_pr_checks(repository, pr_number, verbose=verbose)
+        gh(["pr", "merge", str(pr_number), "--repo", repository, "--squash"])
+        return "direct"
+    detail = result.stderr.strip() or result.stdout.strip()
+    raise ReleaseError(f"Command failed: gh pr merge {pr_number}\n{detail}")
 
 
 def release_url(repository: str, version: str) -> str:
