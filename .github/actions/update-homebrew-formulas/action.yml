@@ -50,7 +50,7 @@ runs:
         bot_email="41898282+github-actions[bot]@users.noreply.github.com"
         git config user.email "$bot_email"
         update_branch="chore/update-formulas"
-        git checkout -b "$update_branch"
+        git checkout -B "$update_branch"
         changed=false
         updated_formulas=()
         for formula_path in "${formula_paths[@]}"; do
@@ -90,7 +90,7 @@ runs:
           updated_formulas+=("$formula")
         done
         if [ "$changed" = true ]; then
-          git push origin "$update_branch" --force
+          git push origin "$update_branch" --force-with-lease
           pr_url="$(
             gh pr list \
               --repo "$GITHUB_REPOSITORY" \
@@ -114,10 +114,8 @@ runs:
           else
             echo "Updated existing PR: $pr_url"
           fi
-          gh pr merge "$pr_url" --auto --squash 2>/dev/null \
+          gh pr merge "$pr_url" --auto --squash \
             || echo "Note: auto-merge unavailable; merge $pr_url manually."
-        fi
-        if [ "$changed" = true ]; then
           echo "changed=true" >> "$GITHUB_OUTPUT"
           printf -v joined '%s,' "${updated_formulas[@]}"
           echo "formulas_updated=${joined%,}" >> "$GITHUB_OUTPUT"
