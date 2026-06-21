@@ -49,6 +49,8 @@ runs:
         git config user.name "github-actions[bot]"
         bot_email="41898282+github-actions[bot]@users.noreply.github.com"
         git config user.email "$bot_email"
+        update_branch="chore/update-formulas"
+        git checkout -b "$update_branch"
         changed=false
         updated_formulas=()
         for formula_path in "${formula_paths[@]}"; do
@@ -88,7 +90,32 @@ runs:
           updated_formulas+=("$formula")
         done
         if [ "$changed" = true ]; then
-          git push
+          git push origin "$update_branch" --force
+          pr_url="$(
+            gh pr list \
+              --repo "$GITHUB_REPOSITORY" \
+              --head "$update_branch" \
+              --base main \
+              --state open \
+              --json url \
+              --jq '.[0].url'
+          )"
+          if [ -z "$pr_url" ]; then
+            printf -v pr_body '%s' "Automated Homebrew formula updates: ${updated_formulas[*]+"${updated_formulas[*]}"}."
+            pr_url="$(
+              gh pr create \
+                --repo "$GITHUB_REPOSITORY" \
+                --title "chore: update Homebrew formulas" \
+                --body "$pr_body" \
+                --base main \
+                --head "$update_branch"
+            )"
+            echo "Created PR: $pr_url"
+          else
+            echo "Updated existing PR: $pr_url"
+          fi
+          gh pr merge "$pr_url" --auto --squash 2>/dev/null \
+            || echo "Note: auto-merge unavailable; merge $pr_url manually."
         fi
         if [ "$changed" = true ]; then
           echo "changed=true" >> "$GITHUB_OUTPUT"
