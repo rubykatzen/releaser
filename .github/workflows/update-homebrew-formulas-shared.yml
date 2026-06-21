@@ -9,4 +9,4 @@ jobs:
       pull-requests: write
     steps:
       - uses: actions/checkout@v7
-      - uses: rubykatzen/releaser/.github/actions/update-homebrew-formulas@fix/homebrew-formula-path
+      - uses: ./.github/actions/update-homebrew-formulas
