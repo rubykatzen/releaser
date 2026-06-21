@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v0.5.1] - 2026-06-21
+
+- fix: pin action to v0.5.1 with HOMEBREW_GITHUB_API_TOKEN
+- fix: pass GitHub token to Homebrew API calls (#55)
+
 ## [v0.5.0] - 2026-06-21
 
 - refactor: make Homebrew tap updates self-contained — shared workflow updates every `Formula/*.rb` in the checked-out tap with no inputs (#53)
