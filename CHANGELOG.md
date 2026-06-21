@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v0.5.3] - 2026-06-21
+
+- chore: pin baseline actions to minor floating tag (#66)
+- fix: use absolute action ref in shared workflow (#64)
+- feat: publish floating major/minor tags on release (#65)
+- Revert "fix: use absolute action ref in shared workflow (#63)"
+- fix: use absolute action ref in shared workflow (#63)
+
 ## [v0.5.2] - 2026-06-21
 
 - fix: update-homebrew-formulas action — correct file path and PR-based push (#60)
