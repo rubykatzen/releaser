@@ -1,0 +1,28 @@
+name: Publish Python package to PyPI
+description: Build a Python distribution and publish it to PyPI using an API token.
+inputs:
+  pypi-token:
+    description: PyPI API token.
+    required: true
+  python-version:
+    description: Python version to use for building.
+    required: false
+    default: "3.12"
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-python@v5
+      with:
+        python-version: ${{ inputs.python-version }}
+    - name: Install build dependencies
+      shell: bash
+      run: pip install build twine
+    - name: Build and publish distribution
+      shell: bash
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ inputs.pypi-token }}
+      run: |
+        set -euo pipefail
+        python -m build
+        python -m twine upload dist/*

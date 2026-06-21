@@ -1,0 +1,42 @@
+name: Publish RubyGem
+description: Build and publish a Ruby gem to RubyGems.org.
+inputs:
+  api-key:
+    description: RubyGems API key.
+    required: true
+  ruby-version:
+    description: Ruby version to use.
+    required: false
+    default: "3.2"
+  gemspec:
+    description: Path to the .gemspec file. Auto-detected if omitted.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ inputs.ruby-version }}
+    - name: Build and push gem
+      shell: bash
+      env:
+        GEM_HOST_API_KEY: ${{ inputs.api-key }}
+        GEMSPEC: ${{ inputs.gemspec }}
+      run: |
+        set -euo pipefail
+        if [ -n "$GEMSPEC" ]; then
+          gemspec="$GEMSPEC"
+        else
+          shopt -s nullglob
+          gemspecs=(*.gemspec)
+          shopt -u nullglob
+          if [ "${#gemspecs[@]}" -ne 1 ]; then
+            echo "Expected exactly one .gemspec, found ${#gemspecs[@]}" >&2
+            exit 1
+          fi
+          gemspec="${gemspecs[0]}"
+        fi
+        rm -f ./*.gem
+        gem build "$gemspec"
+        gem push ./*.gem
