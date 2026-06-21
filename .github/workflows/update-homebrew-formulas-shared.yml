@@ -8,4 +8,4 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - uses: rubykatzen/releaser/.github/actions/update-homebrew-formulas@v0.5.1
+      - uses: rubykatzen/releaser/.github/actions/update-homebrew-formulas@fix/homebrew-formula-path
