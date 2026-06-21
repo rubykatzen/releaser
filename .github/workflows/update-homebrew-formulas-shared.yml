@@ -8,4 +8,4 @@ jobs:
       contents: write
     steps:
       - uses: actions/checkout@v7
-      - uses: ./.github/actions/update-homebrew-formulas
+      - uses: rubykatzen/releaser/.github/actions/update-homebrew-formulas@refactor/homebrew-tap-self-contained-update
