@@ -30,6 +30,7 @@ runs:
         else
           shopt -s nullglob
           gemspecs=(*.gemspec)
+          shopt -u nullglob
           if [ "${#gemspecs[@]}" -ne 1 ]; then
             echo "Expected exactly one .gemspec, found ${#gemspecs[@]}" >&2
             exit 1

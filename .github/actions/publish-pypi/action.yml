@@ -1,15 +1,9 @@
 name: Publish Python package to PyPI
-description: >
-  Build a Python distribution and publish it to PyPI.
-  Uses OIDC trusted publishing by default; pass pypi-token to use API token auth instead.
-  When using OIDC the calling workflow must set permissions.id-token: write.
+description: Build a Python distribution and publish it to PyPI using an API token.
 inputs:
   pypi-token:
-    description: >
-      PyPI API token. If omitted, OIDC trusted publishing is used
-      (the calling workflow must grant id-token: write permission).
-    required: false
-    default: ""
+    description: PyPI API token.
+    required: true
   python-version:
     description: Python version to use for building.
     required: false
@@ -22,10 +16,13 @@ runs:
         python-version: ${{ inputs.python-version }}
     - name: Install build dependencies
       shell: bash
-      run: pip install build
-    - name: Build distribution
+      run: pip install build twine
+    - name: Build and publish distribution
       shell: bash
-      run: python -m build
-    - uses: pypa/gh-action-pypi-publish@release/v1
-      with:
-        password: ${{ inputs.pypi-token }}
+      env:
+        TWINE_USERNAME: __token__
+        TWINE_PASSWORD: ${{ inputs.pypi-token }}
+      run: |
+        set -euo pipefail
+        python -m build
+        python -m twine upload dist/*
