@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+- refactor: make Homebrew tap updates self-contained — shared workflow updates every `Formula/*.rb` in the checked-out tap with no inputs (#53)
+- fix: reference `update-homebrew-formulas` action from releaser repo in reusable workflow
+- fix: run `brew audit` separately after bump in multi-formula updater
+
 ## [v0.4.7] - 2026-06-20
 
 - fix: run brew audit separately after bump to avoid silent no-op

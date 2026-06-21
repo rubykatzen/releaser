@@ -82,7 +82,6 @@ runs:
           brew bump-formula-pr "$full_formula" \
             --version "$latest" \
             --write-only \
-            --strict \
             --no-browse \
             --no-fork
 
@@ -92,6 +91,7 @@ runs:
             continue
           fi
 
+          brew audit --strict "$full_formula"
           git commit -m "${formula}: update to v${latest}"
           changed=true
           updated_formulas+=("$formula")
