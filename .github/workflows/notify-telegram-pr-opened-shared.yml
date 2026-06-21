@@ -22,11 +22,11 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: format
-        uses: ./.github/actions/format-pr-opened-message
+        uses: rubykatzen/releaser/.github/actions/format-pr-opened-message@v0.5
         with:
           pr-number: ${{ inputs.pr-number }}
           event-action: ${{ inputs.event-action }}
-      - uses: ./.github/actions/send-telegram-message
+      - uses: rubykatzen/releaser/.github/actions/send-telegram-message@v0.5
         with:
           message: ${{ steps.format.outputs.message }}
           telegram-bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
