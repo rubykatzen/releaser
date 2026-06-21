@@ -26,7 +26,8 @@ runs:
         NOTES: ${{ inputs.notes }}
       run: |
         set -euo pipefail
-        tag="v${{ inputs.version }}"
+        version="${{ inputs.version }}"
+        tag="v${version}"
         git config user.name "github-actions[bot]"
         git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git tag -a "$tag" HEAD -m "Release $tag"
@@ -36,3 +37,11 @@ runs:
           --title "$tag" \
           --notes-file /tmp/release-notes.md
         echo "tag=$tag" >> "$GITHUB_OUTPUT"
+        major="v${version%%.*}"
+        minor="v${version%.*}"
+        for floating in "$major" "$minor"; do
+          git push origin --delete "$floating" 2>/dev/null || true
+          git tag -d "$floating" 2>/dev/null || true
+          git tag "$floating" HEAD
+          git push origin "$floating"
+        done
