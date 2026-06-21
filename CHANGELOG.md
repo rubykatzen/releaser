@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v0.5.2] - 2026-06-21
+
+- fix: update-homebrew-formulas action — correct file path and PR-based push (#60)
+- feat: add publish-rubygems and publish-pypi reusable actions (#57)
+
 ## [v0.5.1] - 2026-06-21
 
 - fix: pin action to v0.5.1 with HOMEBREW_GITHUB_API_TOKEN
