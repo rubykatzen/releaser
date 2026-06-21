@@ -82,6 +82,43 @@ releaser patch --dry-run --json
   dispatch) and `publish-release.yml` (triggered by merged `release/*` PRs).
 - GitHub Releases are created by `publish-release.yml`, not by the CLI.
 
+## Reusable Actions
+
+`releaser` ships composite actions that can be used in any repo's `publish-release.yml` to publish packages to the relevant target.
+
+### Homebrew tap update
+
+Updates all formulas in the checked-out tap to the latest upstream release.
+
+```yaml
+- uses: rubykatzen/releaser/.github/actions/update-homebrew-formulas@vX.Y.Z
+  with:
+    token: ${{ secrets.GITHUB_TOKEN }}  # optional, defaults to github.token
+```
+
+### Publish to RubyGems
+
+Builds and pushes a Ruby gem. Auto-detects the `.gemspec` in the repo root.
+
+```yaml
+- uses: rubykatzen/releaser/.github/actions/publish-rubygems@vX.Y.Z
+  with:
+    api-key: ${{ secrets.RUBYGEMS_API_KEY }}
+    # ruby-version: "3.2"        # optional, default: 3.2
+    # gemspec: path/to/my.gemspec  # optional, auto-detected
+```
+
+### Publish to PyPI
+
+Builds a Python distribution (`python -m build`) and uploads it to PyPI using an API token.
+
+```yaml
+- uses: rubykatzen/releaser/.github/actions/publish-pypi@vX.Y.Z
+  with:
+    pypi-token: ${{ secrets.PYPI_TOKEN }}
+    # python-version: "3.12"  # optional, default: 3.12
+```
+
 ## Releasing
 
 `releaser` releases itself. Run from inside this repository:
