@@ -45,6 +45,7 @@ runs:
           exit 0
         fi
         brew tap "$tap" "$PWD"
+        tap_path="$(brew --repository "$tap")"
         git config user.name "github-actions[bot]"
         bot_email="41898282+github-actions[bot]@users.noreply.github.com"
         git config user.email "$bot_email"
@@ -74,6 +75,8 @@ runs:
             --write-only \
             --no-browse \
             --no-fork
+          # brew writes to its own tap clone, not to $PWD — copy the result back
+          cp "$tap_path/$formula_path" "$formula_path"
           git add "$formula_path"
           if git diff --cached --quiet; then
             echo "Homebrew reported latest=$latest for $full_formula, but no changes were produced."
