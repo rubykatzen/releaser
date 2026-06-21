@@ -1,0 +1,111 @@
+name: Update Homebrew formulas
+description: Update every formula in the checked-out tap to the latest upstream version.
+inputs:
+  token:
+    description: GitHub token.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  changed:
+    description: Whether any formula was updated.
+    value: ${{ steps.bump.outputs.changed }}
+  formulas_updated:
+    description: Comma-separated list of formulas that were updated.
+    value: ${{ steps.bump.outputs.formulas_updated }}
+runs:
+  using: composite
+  steps:
+    - name: Bump all formulas to latest upstream versions
+      id: bump
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        HOMEBREW_NO_AUTO_UPDATE: "1"
+        GITHUB_REPOSITORY: ${{ github.repository }}
+      run: |
+        set -euo pipefail
+
+        owner="${GITHUB_REPOSITORY%%/*}"
+        repo_name="${GITHUB_REPOSITORY#*/}"
+        if [[ "$repo_name" == homebrew-* ]]; then
+          tap="${owner}/${repo_name#homebrew-}"
+        else
+          tap="$GITHUB_REPOSITORY"
+        fi
+
+        if [ ! -d Formula ]; then
+          echo "Formula directory not found in ${GITHUB_REPOSITORY}" >&2
+          exit 1
+        fi
+
+        shopt -s nullglob
+        formula_paths=(Formula/*.rb)
+        if [ "${#formula_paths[@]}" -eq 0 ]; then
+          echo "No formulas found in Formula/."
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+          echo "formulas_updated=" >> "$GITHUB_OUTPUT"
+          exit 0
+        fi
+
+        brew tap "$tap" "$PWD"
+
+        git config user.name "github-actions[bot]"
+        bot_email="41898282+github-actions[bot]@users.noreply.github.com"
+        git config user.email "$bot_email"
+
+        changed=false
+        updated_formulas=()
+
+        for formula_path in "${formula_paths[@]}"; do
+          formula="$(basename "$formula_path" .rb)"
+          full_formula="${tap}/${formula}"
+
+          latest="$(
+            brew livecheck "$full_formula" --json |
+              jq -r '.[0].version.latest // ""'
+          )"
+          current="$(
+            brew info "$full_formula" --json=v2 |
+              jq -r '.formulae[0].versions.stable // ""'
+          )"
+
+          if [ -z "$latest" ] || [ "$latest" = "null" ]; then
+            echo "Could not resolve latest version for $full_formula, skipping." >&2
+            continue
+          fi
+
+          if [ "$latest" = "$current" ]; then
+            echo "$full_formula already current ($current)."
+            continue
+          fi
+
+          brew bump-formula-pr "$full_formula" \
+            --version "$latest" \
+            --write-only \
+            --strict \
+            --no-browse \
+            --no-fork
+
+          git add "$formula_path"
+          if git diff --cached --quiet; then
+            echo "Homebrew reported latest=$latest for $full_formula, but no changes were produced."
+            continue
+          fi
+
+          git commit -m "${formula}: update to v${latest}"
+          changed=true
+          updated_formulas+=("$formula")
+        done
+
+        if [ "$changed" = true ]; then
+          git push
+        fi
+
+        if [ "$changed" = true ]; then
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+          printf -v joined '%s,' "${updated_formulas[@]}"
+          echo "formulas_updated=${joined%,}" >> "$GITHUB_OUTPUT"
+        else
+          echo "changed=false" >> "$GITHUB_OUTPUT"
+          echo "formulas_updated=" >> "$GITHUB_OUTPUT"
+        fi
