@@ -42,11 +42,11 @@ jobs:
           fi
           echo "count=$count" >> "$GITHUB_OUTPUT"
       - id: format
-        uses: ./.github/actions/format-unreleased-message
+        uses: rubykatzen/releaser/.github/actions/format-unreleased-message@v0.5
         with:
           ci-conclusion: ${{ steps.ci.outputs.conclusion }}
           unreleased-count: ${{ steps.commits.outputs.count }}
-      - uses: ./.github/actions/send-telegram-message
+      - uses: rubykatzen/releaser/.github/actions/send-telegram-message@v0.5
         with:
           message: ${{ steps.format.outputs.message }}
           telegram-bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}

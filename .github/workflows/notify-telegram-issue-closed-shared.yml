@@ -27,22 +27,22 @@ jobs:
     steps:
       - uses: actions/checkout@v7
       - id: issue-labels
-        uses: ./.github/actions/issue-get-labels
+        uses: rubykatzen/releaser/.github/actions/issue-get-labels@v0.5
         with:
           number: ${{ inputs.issue-number }}
       - id: format
         if: contains(fromJSON(steps.issue-labels.outputs.labels), inputs.notify-label)
-        uses: ./.github/actions/format-issue-closed-message
+        uses: rubykatzen/releaser/.github/actions/format-issue-closed-message@v0.5
         with:
           issue-number: ${{ inputs.issue-number }}
           actor: ${{ inputs.actor }}
-      - uses: ./.github/actions/send-telegram-message
+      - uses: rubykatzen/releaser/.github/actions/send-telegram-message@v0.5
         if: contains(fromJSON(steps.issue-labels.outputs.labels), inputs.notify-label) && steps.format.outcome == 'success'
         with:
           message: ${{ steps.format.outputs.message }}
           telegram-bot-token: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           telegram-chat-id: ${{ secrets.TELEGRAM_CHAT_ID }}
-      - uses: ./.github/actions/issue-remove-label
+      - uses: rubykatzen/releaser/.github/actions/issue-remove-label@v0.5
         if: contains(fromJSON(steps.issue-labels.outputs.labels), inputs.notify-label) && steps.format.outcome == 'success'
         with:
           number: ${{ inputs.issue-number }}
