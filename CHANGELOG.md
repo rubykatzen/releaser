@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [v0.5.5] - 2026-06-22
+
+- fix: force-update floating tags when fetching after release (#70)
+
 ## [v0.5.4] - 2026-06-22
 
 - fix: stop releaser UI flicker while watching workflow (#68)
