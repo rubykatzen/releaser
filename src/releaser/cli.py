@@ -87,12 +87,6 @@ class ReleaseState:
     refusal_reason: str | None
 
 
-def run_interactive(cmd: list[str], *, cwd: str | None = None) -> int:
-    """Run a command with stdout/stderr streamed to the terminal. Returns exit code."""
-    proc = subprocess.run(cmd, cwd=cwd, check=False)
-    return proc.returncode
-
-
 def run(cmd: list[str], *, cwd: str | None = None, check: bool = True) -> CommandResult:
     proc = subprocess.run(
         cmd,
@@ -407,6 +401,80 @@ def wait_for_run(
                 pass
         time.sleep(poll_interval)
     raise ReleaseError(f"Could not find {workflow} run after dispatch")
+
+
+def wait_for_run_completion(
+    repository: str,
+    run_id: str,
+    *,
+    cwd: str | None = None,
+    timeout: float = DEFAULT_CHECK_TIMEOUT,
+    poll_interval: float = 3.0,
+    silent: bool = False,
+    label: str = "",
+) -> None:
+    """Wait for a workflow run and print line-by-line progress updates."""
+    deadline = time.time() + timeout
+    run_state: tuple[str, str | None] | None = None
+    job_states: dict[str, tuple[str, str | None]] = {}
+    while time.time() < deadline:
+        result = gh(
+            [
+                "run",
+                "view",
+                run_id,
+                "--repo",
+                repository,
+                "--json",
+                "status,conclusion,jobs",
+            ],
+            cwd=cwd,
+            check=False,
+        )
+        if result.returncode != 0 or not result.stdout:
+            time.sleep(poll_interval)
+            continue
+        try:
+            data = json.loads(result.stdout)
+        except json.JSONDecodeError:
+            time.sleep(poll_interval)
+            continue
+
+        status = data.get("status") or "unknown"
+        conclusion = data.get("conclusion")
+        current_run_state = (status, conclusion)
+        if not silent and current_run_state != run_state:
+            if status == "completed":
+                print(f"Run {run_id}: completed ({conclusion or 'unknown'})")
+            else:
+                print(f"Run {run_id}: {status}")
+        run_state = current_run_state
+
+        if not silent:
+            for job in data.get("jobs") or []:
+                name = job.get("name")
+                if not name:
+                    continue
+                job_status = job.get("status") or "unknown"
+                job_conclusion = job.get("conclusion")
+                current_job_state = (job_status, job_conclusion)
+                if job_states.get(name) == current_job_state:
+                    continue
+                job_states[name] = current_job_state
+                if job_status == "completed":
+                    print(f"  {name}: completed ({job_conclusion or 'unknown'})")
+                else:
+                    print(f"  {name}: {job_status}")
+
+        if status == "completed":
+            if conclusion != "success":
+                name = label or f"workflow run {run_id}"
+                raise ReleaseError(
+                    f"{name} failed with conclusion {conclusion or 'unknown'}"
+                )
+            return
+        time.sleep(poll_interval)
+    raise ReleaseError(f"Timed out waiting for workflow run {run_id}")
 
 
 def pr_number_from_url(pr_url: str) -> int:
@@ -750,14 +818,13 @@ def run_release(
     if not as_json:
         print(f"Watching prepare-release run {prepare_run_id}...")
 
-    watch_result = run_interactive(
-        ["gh", "run", "watch", prepare_run_id, "--repo", state_.repository, "--exit-status"],
+    wait_for_run_completion(
+        state_.repository,
+        prepare_run_id,
         cwd=state_.root,
+        silent=as_json,
+        label=PREPARE_RELEASE_WORKFLOW,
     )
-    if watch_result != 0:
-        raise ReleaseError(
-            f"{PREPARE_RELEASE_WORKFLOW} failed for {version} (run {prepare_run_id})"
-        )
 
     pr_result = gh(
         [
@@ -801,14 +868,14 @@ def run_release(
     if not as_json:
         print(f"Watching publish-release run {publish_run_id}...")
 
-    watch_result = run_interactive(
-        ["gh", "run", "watch", publish_run_id, "--repo", state_.repository, "--exit-status"],
+    wait_for_run_completion(
+        state_.repository,
+        publish_run_id,
         cwd=state_.root,
+        timeout=DEFAULT_PUBLISH_TIMEOUT,
+        silent=as_json,
+        label=PUBLISH_RELEASE_WORKFLOW,
     )
-    if watch_result != 0:
-        raise ReleaseError(
-            f"{PUBLISH_RELEASE_WORKFLOW} failed for {version} (run {publish_run_id})"
-        )
 
     url = verify_release_published(
         state_.repository,
