@@ -27,9 +27,14 @@ runs:
       run: |
         set -euo pipefail
         current=$(git rev-parse HEAD)
-        required=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${GITHUB_REF_NAME}/protection/required_status_checks" \
-          --jq 'if (.checks | length) > 0 then [.checks[].context] else (.contexts // []) end | .[]' \
-          2>/dev/null || true)
+        protection=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${GITHUB_REF_NAME}/protection/required_status_checks" 2>/dev/null || true)
+        required=""
+        if [ -n "$protection" ]; then
+          required=$(echo "$protection" | jq -r '(.checks // [])[] | .context' 2>/dev/null || true)
+          if [ -z "$required" ]; then
+            required=$(echo "$protection" | jq -r '(.contexts // [])[]' 2>/dev/null || true)
+          fi
+        fi
         if [ -z "$required" ]; then
           echo "No required checks configured, skipping CI verification."
           exit 0
