@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [v0.5.6] - 2026-06-22
+
+- fix: force push update branch instead of force-with-lease (#72)
+
 ## [v0.5.5] - 2026-06-22
 
 - fix: force-update floating tags when fetching after release (#70)
