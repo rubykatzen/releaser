@@ -37,4 +37,4 @@ runs:
           gh workflow run "$workflow" \
             --repo "$GITHUB_REPOSITORY" \
             --ref "$REF"
-        done < <(printf '%s\n' "${WORKFLOWS_DISPATCH//,/}")
+        done < <(printf '%s\n' "${WORKFLOWS_DISPATCH//,/$'\n'}")
