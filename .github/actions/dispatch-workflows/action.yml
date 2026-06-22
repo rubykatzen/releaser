@@ -11,7 +11,7 @@ inputs:
   workflows_dispatch:
     description: >-
       Workflow files to dispatch (comma- or newline-separated),
-      for example lint.yml.
+      for example lint or lint.yml.
     required: false
     default: ""
 runs:
@@ -33,6 +33,7 @@ runs:
         while IFS= read -r workflow; do
           workflow="${workflow// /}"
           [ -z "$workflow" ] && continue
+          [[ "$workflow" != *.yml && "$workflow" != *.yaml ]] && workflow="${workflow}.yml"
           echo "Dispatching workflow ${workflow} on ref ${REF}"
           gh workflow run "$workflow" \
             --repo "$GITHUB_REPOSITORY" \
