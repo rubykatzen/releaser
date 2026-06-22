@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [v0.5.7] - 2026-06-22
+
+- feat: add auto_merge and post_push_workflows to formula updater (#74)
+
 ## [v0.5.6] - 2026-06-22
 
 - fix: force push update branch instead of force-with-lease (#72)
