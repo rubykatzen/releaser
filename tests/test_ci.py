@@ -39,6 +39,13 @@ def test_ci_status_missing() -> None:
     assert "lint" in reason
 
 
+def test_ci_status_reusable_workflow_check_name() -> None:
+    runs = [CiRun(name="lint / lint", status="completed", conclusion="success", url=None)]
+    status, reason = ci_status(runs, ["lint"])
+    assert status == "success"
+    assert reason is None
+
+
 def test_ci_status_failed() -> None:
     runs = [CiRun(name="lint", status="completed", conclusion="failure", url=None)]
     status, reason = ci_status(runs, ["lint"])
