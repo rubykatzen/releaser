@@ -90,7 +90,7 @@ runs:
           updated_formulas+=("$formula")
         done
         if [ "$changed" = true ]; then
-          git push origin "$update_branch" --force-with-lease
+          git push origin "$update_branch" --force
           pr_url="$(
             gh pr list \
               --repo "$GITHUB_REPOSITORY" \
