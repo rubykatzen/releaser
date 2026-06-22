@@ -127,7 +127,7 @@ def repo_root() -> str:
 
 
 def fetch(root: str, remote: str, branch: str) -> None:
-    git(["fetch", remote, branch, "--tags", "--prune"], cwd=root)
+    git(["fetch", remote, branch, "--tags", "--prune", "--force"], cwd=root)
 
 
 def origin_head(root: str, remote: str, branch: str) -> str:
