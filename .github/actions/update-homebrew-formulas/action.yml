@@ -5,6 +5,20 @@ inputs:
     description: GitHub token.
     required: false
     default: ${{ github.token }}
+  update_branch:
+    description: Branch to push formula updates to.
+    required: false
+    default: chore/update-formulas
+  auto_merge:
+    description: Enable auto-merge on the opened or updated PR.
+    required: false
+    default: "false"
+  post_push_workflows:
+    description: >-
+      Workflow files to dispatch after push (comma- or newline-separated),
+      for example lint.yml.
+    required: false
+    default: ""
 outputs:
   changed:
     description: Whether any formula was updated.
@@ -23,6 +37,9 @@ runs:
         HOMEBREW_GITHUB_API_TOKEN: ${{ inputs.token }}
         HOMEBREW_NO_AUTO_UPDATE: "1"
         GITHUB_REPOSITORY: ${{ github.repository }}
+        UPDATE_BRANCH: ${{ inputs.update_branch }}
+        AUTO_MERGE: ${{ inputs.auto_merge }}
+        POST_PUSH_WORKFLOWS: ${{ inputs.post_push_workflows }}
       run: |
         set -euo pipefail
         owner="${GITHUB_REPOSITORY%%/*}"
@@ -49,8 +66,7 @@ runs:
         git config user.name "github-actions[bot]"
         bot_email="41898282+github-actions[bot]@users.noreply.github.com"
         git config user.email "$bot_email"
-        update_branch="chore/update-formulas"
-        git checkout -B "$update_branch"
+        git checkout -B "$UPDATE_BRANCH"
         changed=false
         updated_formulas=()
         for formula_path in "${formula_paths[@]}"; do
@@ -90,11 +106,21 @@ runs:
           updated_formulas+=("$formula")
         done
         if [ "$changed" = true ]; then
-          git push origin "$update_branch" --force
+          git push origin "$UPDATE_BRANCH" --force
+          if [ -n "$POST_PUSH_WORKFLOWS" ]; then
+            while IFS= read -r workflow; do
+              workflow="${workflow// /}"
+              [ -z "$workflow" ] && continue
+              echo "Dispatching workflow ${workflow} on ref ${UPDATE_BRANCH}"
+              gh workflow run "$workflow" \
+                --repo "$GITHUB_REPOSITORY" \
+                --ref "$UPDATE_BRANCH"
+            done < <(printf '%s\n' "${POST_PUSH_WORKFLOWS//,/}")
+          fi
           pr_url="$(
             gh pr list \
               --repo "$GITHUB_REPOSITORY" \
-              --head "$update_branch" \
+              --head "$UPDATE_BRANCH" \
               --base main \
               --state open \
               --json url \
@@ -108,14 +134,16 @@ runs:
                 --title "chore: update Homebrew formulas" \
                 --body "$pr_body" \
                 --base main \
-                --head "$update_branch"
+                --head "$UPDATE_BRANCH"
             )"
             echo "Created PR: $pr_url"
           else
             echo "Updated existing PR: $pr_url"
           fi
-          gh pr merge "$pr_url" --auto --squash \
-            || echo "Note: auto-merge unavailable; merge $pr_url manually."
+          if [ "$AUTO_MERGE" = "true" ]; then
+            gh pr merge "$pr_url" --auto --squash \
+              || echo "Note: auto-merge unavailable; merge $pr_url manually."
+          fi
           echo "changed=true" >> "$GITHUB_OUTPUT"
           printf -v joined '%s,' "${updated_formulas[@]}"
           echo "formulas_updated=${joined%,}" >> "$GITHUB_OUTPUT"

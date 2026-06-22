@@ -1,12 +1,27 @@
 name: Update Homebrew Formulas
 "on":
   workflow_call:
+    inputs:
+      update_branch:
+        type: string
+        default: chore/update-formulas
+      auto_merge:
+        type: boolean
+        default: false
+      post_push_workflows:
+        type: string
+        default: ""
 jobs:
   update:
     runs-on: macos-latest
     permissions:
       contents: write
       pull-requests: write
+      actions: write
     steps:
       - uses: actions/checkout@v7
       - uses: rubykatzen/releaser/.github/actions/update-homebrew-formulas@v0.5
+        with:
+          update_branch: ${{ inputs.update_branch }}
+          auto_merge: ${{ inputs.auto_merge }}
+          post_push_workflows: ${{ inputs.post_push_workflows }}
