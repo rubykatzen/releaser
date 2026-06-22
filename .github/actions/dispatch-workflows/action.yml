@@ -1,0 +1,40 @@
+name: Dispatch workflows
+description: Run workflow_dispatch for a list of workflow files on the given ref.
+inputs:
+  token:
+    description: GitHub token.
+    required: false
+    default: ${{ github.token }}
+  ref:
+    description: Branch or tag ref to run workflows on.
+    required: true
+  workflows_dispatch:
+    description: >-
+      Workflow files to dispatch (comma- or newline-separated),
+      for example lint.yml.
+    required: false
+    default: ""
+runs:
+  using: composite
+  steps:
+    - name: Dispatch workflows
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        REF: ${{ inputs.ref }}
+        WORKFLOWS_DISPATCH: ${{ inputs.workflows_dispatch }}
+      run: |
+        set -euo pipefail
+        if [ -z "$WORKFLOWS_DISPATCH" ]; then
+          echo "No workflows to dispatch."
+          exit 0
+        fi
+        while IFS= read -r workflow; do
+          workflow="${workflow// /}"
+          [ -z "$workflow" ] && continue
+          echo "Dispatching workflow ${workflow} on ref ${REF}"
+          gh workflow run "$workflow" \
+            --repo "$GITHUB_REPOSITORY" \
+            --ref "$REF"
+        done < <(printf '%s\n' "${WORKFLOWS_DISPATCH//,/$'\n'}")
