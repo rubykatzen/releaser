@@ -2,6 +2,10 @@
 
 ## [Unreleased]
 
+## [v0.5.4] - 2026-06-22
+
+- fix: stop releaser UI flicker while watching workflow (#68)
+
 ## [v0.5.3] - 2026-06-21
 
 - chore: pin baseline actions to minor floating tag (#66)
