@@ -1,13 +1,9 @@
 name: Verify release preconditions
-description: Verify base SHA matches HEAD and CI is green.
+description: Verify base SHA matches HEAD and all required branch protection checks are green.
 inputs:
   base_sha:
     description: Expected HEAD SHA of main.
     required: true
-  ci_workflow:
-    description: Workflow file to check for green status.
-    required: false
-    default: lint.yml
   token:
     description: GitHub token.
     required: false
@@ -28,15 +24,27 @@ runs:
       shell: bash
       env:
         GH_TOKEN: ${{ inputs.token }}
-        CI_WORKFLOW: ${{ inputs.ci_workflow }}
       run: |
         set -euo pipefail
         current=$(git rev-parse HEAD)
-        check_name="${CI_WORKFLOW%.yml}"
-        conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${current}/check-runs" \
-          --paginate \
-          --jq "[.check_runs[] | select(.name == \"${check_name}\")] | last | .conclusion // \"missing\"")
-        if [ "$conclusion" != "success" ]; then
-          echo "CI is not green on ${current}: ${check_name}=${conclusion}"
+        required=$(gh api "repos/${GITHUB_REPOSITORY}/branches/${GITHUB_REF_NAME}/protection/required_status_checks" \
+          --jq 'if (.checks | length) > 0 then [.checks[].context] else (.contexts // []) end | .[]' \
+          2>/dev/null || true)
+        if [ -z "$required" ]; then
+          echo "No required checks configured, skipping CI verification."
+          exit 0
+        fi
+        failed=()
+        while IFS= read -r check_name; do
+          [ -z "$check_name" ] && continue
+          conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${current}/check-runs" \
+            --paginate \
+            --jq "[.check_runs[] | select(.name == \"${check_name}\" or (.name | startswith(\"${check_name} /\")))] | last | .conclusion // \"missing\"")
+          if [ "$conclusion" != "success" ]; then
+            failed+=("${check_name}=${conclusion}")
+          fi
+        done <<< "$required"
+        if [ ${#failed[@]} -gt 0 ]; then
+          echo "CI is not green on ${current}: ${failed[*]}"
           exit 1
         fi

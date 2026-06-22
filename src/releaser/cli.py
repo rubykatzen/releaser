@@ -289,7 +289,9 @@ def ci_status(runs: list[CiRun], required: list[str] | None) -> tuple[str, str |
     by_name = {run.name: run for run in runs}
     missing, pending, failed = [], [], []
     for ctx in required:
-        run = by_name.get(ctx)
+        run = by_name.get(ctx) or next(
+            (r for r in runs if r.name.startswith(ctx + " /")), None
+        )
         if run is None:
             missing.append(ctx)
         elif run.status != "completed":
