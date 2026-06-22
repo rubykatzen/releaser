@@ -170,3 +170,29 @@ def test_wait_for_run_completion_raises_on_failure(monkeypatch) -> None:
 
     with pytest.raises(ReleaseError, match="failed with conclusion failure"):
         wait_for_run_completion("org/repo", "123", poll_interval=0)
+
+
+def test_wait_for_run_completion_includes_label_in_error(monkeypatch) -> None:
+    response = {
+        "status": "completed",
+        "conclusion": "failure",
+        "jobs": [],
+    }
+
+    def fake_gh(*args, **kwargs):
+        return CommandResult(returncode=0, stdout=json.dumps(response), stderr="")
+
+    monkeypatch.setattr("releaser.cli.gh", fake_gh)
+
+    with pytest.raises(ReleaseError, match="prepare-release.yml failed"):
+        wait_for_run_completion("org/repo", "123", poll_interval=0, label="prepare-release.yml")
+
+
+def test_wait_for_run_completion_times_out(monkeypatch) -> None:
+    def fake_gh(*args, **kwargs):
+        return CommandResult(returncode=0, stdout=json.dumps({"status": "in_progress", "conclusion": None, "jobs": []}), stderr="")
+
+    monkeypatch.setattr("releaser.cli.gh", fake_gh)
+
+    with pytest.raises(ReleaseError, match="Timed out waiting for workflow run 123"):
+        wait_for_run_completion("org/repo", "123", timeout=0, poll_interval=0)

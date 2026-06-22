@@ -410,6 +410,8 @@ def wait_for_run_completion(
     cwd: str | None = None,
     timeout: float = DEFAULT_CHECK_TIMEOUT,
     poll_interval: float = 3.0,
+    silent: bool = False,
+    label: str = "",
 ) -> None:
     """Wait for a workflow run and print line-by-line progress updates."""
     deadline = time.time() + timeout
@@ -438,35 +440,37 @@ def wait_for_run_completion(
             time.sleep(poll_interval)
             continue
 
-        status = str(data.get("status") or "unknown")
+        status = data.get("status") or "unknown"
         conclusion = data.get("conclusion")
         current_run_state = (status, conclusion)
-        if current_run_state != run_state:
+        if not silent and current_run_state != run_state:
             if status == "completed":
                 print(f"Run {run_id}: completed ({conclusion or 'unknown'})")
             else:
                 print(f"Run {run_id}: {status}")
-            run_state = current_run_state
+        run_state = current_run_state
 
-        for job in data.get("jobs") or []:
-            name = job.get("name")
-            if not name:
-                continue
-            job_status = str(job.get("status") or "unknown")
-            job_conclusion = job.get("conclusion")
-            current_job_state = (job_status, job_conclusion)
-            if job_states.get(name) == current_job_state:
-                continue
-            job_states[name] = current_job_state
-            if job_status == "completed":
-                print(f"  {name}: completed ({job_conclusion or 'unknown'})")
-            else:
-                print(f"  {name}: {job_status}")
+        if not silent:
+            for job in data.get("jobs") or []:
+                name = job.get("name")
+                if not name:
+                    continue
+                job_status = job.get("status") or "unknown"
+                job_conclusion = job.get("conclusion")
+                current_job_state = (job_status, job_conclusion)
+                if job_states.get(name) == current_job_state:
+                    continue
+                job_states[name] = current_job_state
+                if job_status == "completed":
+                    print(f"  {name}: completed ({job_conclusion or 'unknown'})")
+                else:
+                    print(f"  {name}: {job_status}")
 
         if status == "completed":
             if conclusion != "success":
+                name = label or f"workflow run {run_id}"
                 raise ReleaseError(
-                    f"Workflow run {run_id} failed with conclusion {conclusion or 'unknown'}"
+                    f"{name} failed with conclusion {conclusion or 'unknown'}"
                 )
             return
         time.sleep(poll_interval)
@@ -818,7 +822,8 @@ def run_release(
         state_.repository,
         prepare_run_id,
         cwd=state_.root,
-        timeout=DEFAULT_CHECK_TIMEOUT,
+        silent=as_json,
+        label=PREPARE_RELEASE_WORKFLOW,
     )
 
     pr_result = gh(
@@ -868,6 +873,8 @@ def run_release(
         publish_run_id,
         cwd=state_.root,
         timeout=DEFAULT_PUBLISH_TIMEOUT,
+        silent=as_json,
+        label=PUBLISH_RELEASE_WORKFLOW,
     )
 
     url = verify_release_published(
