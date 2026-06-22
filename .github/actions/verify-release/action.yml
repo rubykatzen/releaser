@@ -35,7 +35,7 @@ runs:
         check_name="${CI_WORKFLOW%.yml}"
         conclusion=$(gh api "repos/${GITHUB_REPOSITORY}/commits/${current}/check-runs" \
           --paginate \
-          --jq "[.check_runs[] | select(.name == \"${check_name}\")] | last | .conclusion // \"missing\"")
+          --jq "[.check_runs[] | select(.name == \"${check_name}\" or (.name | startswith(\"${check_name} /\")))] | last | .conclusion // \"missing\"")
         if [ "$conclusion" != "success" ]; then
           echo "CI is not green on ${current}: ${check_name}=${conclusion}"
           exit 1
