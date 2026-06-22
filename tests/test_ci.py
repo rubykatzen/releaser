@@ -11,8 +11,8 @@ from releaser.cli import (
     merge_release_pr,
     pr_number_from_url,
     wait_for_pr_checks,
-    wait_for_run_completion,
     wait_for_run,
+    wait_for_run_completion,
 )
 
 
