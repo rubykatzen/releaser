@@ -2,6 +2,19 @@
 
 ## [Unreleased]
 
+## [v0.5.8] - 2026-06-22
+
+- fix: rewrite branch protection jq in verify-release without if-then-else
+- fix: read required checks from branch protection in verify-release, handle reusable workflow check names
+- fix: match reusable workflow check run names in verify-release
+- feat: accept extensionless workflow names in dispatch-workflows
+- chore: remove dependabot auto-merge shared workflow
+- chore: remove dependabot auto-merge workflow
+- fix: remove double blank line in CHANGELOG
+- Update notify-telegram-unreleased.yml
+- chore: migrate lint to baseline shared workflow, bump baseline to v0.7
+- chore: bump rubykatzen/baseline actions to v0.7
+
 ## [v0.5.7] - 2026-06-22
 
 - feat: add auto_merge and post_push_workflows to formula updater (#74)
