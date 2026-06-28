@@ -1,6 +1,6 @@
 name: Notify Telegram PR opened
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, ready_for_review, reopened]
 jobs:
   notify:
