@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v0.5.9] - 2026-07-01
+
+- fix: use pull_request_target in notify-telegram-pr-opened for secret access
+- chore(deps): bump https://github.com/rubykatzen/baseline
+
 ## [v0.5.8] - 2026-06-22
 
 - fix: rewrite branch protection jq in verify-release without if-then-else
