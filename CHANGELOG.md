@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+## [v0.5.10] - 2026-07-07
+
+- chore(deps): bump https://github.com/rubykatzen/baseline
+- chore(deps): bump https://github.com/rubykatzen/baseline
+- revert: keep @v0.7 floating minor tag
+- fix: set dependabot schedule time to 10:00
+- fix: pin lint-shared to v0.7.5 and enable pre-commit sync check
+
 ## [v0.5.9] - 2026-07-01
 
 - fix: use pull_request_target in notify-telegram-pr-opened for secret access
