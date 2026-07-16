@@ -2,6 +2,11 @@
 
 ## [Unreleased]
 
+## [v0.5.11] - 2026-07-16
+
+- fix: avoid SIGPIPE in generate-notes by limiting git log at source (#93)
+- chore(deps): bump https://github.com/rubykatzen/baseline
+
 ## [v0.5.10] - 2026-07-07
 
 - chore(deps): bump https://github.com/rubykatzen/baseline
