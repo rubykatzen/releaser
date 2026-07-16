@@ -25,9 +25,9 @@ runs:
         tag="v${{ inputs.version }}"
         prev_tag=$(git tag --sort=-version:refname | grep -E '^v[0-9]' | grep -v "^${tag}$" | head -1 || true)
         if [ -n "$prev_tag" ]; then
-          commits=$(git log "${prev_tag}..HEAD" --format="- %s" --no-merges | head -50)
+          commits=$(git log "${prev_tag}..HEAD" --format="- %s" --no-merges -50)
         else
-          commits=$(git log HEAD --format="- %s" --no-merges | head -50)
+          commits=$(git log HEAD --format="- %s" --no-merges -50)
         fi
         unreleased=""
         [ -f CHANGELOG.md ] && unreleased=$(awk '/^## \[Unreleased\]/{f=1;next} f && /^## \[/{exit} f{print}' CHANGELOG.md)
