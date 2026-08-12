@@ -1,5 +1,16 @@
 # releaser
 
+> [!WARNING]
+> This project is archived and no longer maintained.
+>
+> Release automation has moved to
+> [Google Release Please](https://github.com/googleapis/release-please).
+> Reusable Telegram pull request and issue notification workflows have moved to
+> [rubykatzen/baseline](https://github.com/rubykatzen/baseline):
+> `notify-telegram-pr-shared.yml` and `notify-telegram-issue-shared.yml`.
+>
+> Existing consumers should migrate away from Releaser workflows and actions.
+
 `releaser` is an opinionated zero-config release orchestrator for GitHub repositories.
 
 It verifies that `origin/main` is releasable (new commits, CI green or recoverable),
